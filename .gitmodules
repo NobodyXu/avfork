@@ -1,0 +1,3 @@
+[submodule "aspawn"]
+	path = aspawn
+	url = https://github.com/nobodyxu/aspawn
