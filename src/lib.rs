@@ -1,7 +1,11 @@
 mod syscall;
 mod aspawn;
+mod error;
 
 use std::ptr;
+
+pub use error::SyscallError;
+use error::toResult;
 
 pub struct Stack {
     stack_impl: aspawn::Stack_t

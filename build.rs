@@ -48,7 +48,9 @@ fn main() {
     // Tell cargo to invalidate the built crate whenever the wrapper changes
     println!("cargo:rerun-if-changed=aspawn/aspawn.h");
     println!("cargo:rerun-if-changed=aspawn/syscall/syscall.h");
+    println!("cargo:rerun-if-changed=aspawn/syscall/errno_msgs.h");
 
     gen_binding("aspawn/aspawn.h", "aspawn_binding.rs");
     gen_binding("aspawn/syscall/syscall.h", "syscall_binding.rs");
+    gen_binding("aspawn/syscall/errno_msgs.h", "errno_msgs_binding.rs");
 }
