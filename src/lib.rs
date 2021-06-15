@@ -20,20 +20,20 @@ impl Stack {
         };
         unsafe {
             aspawn::init_cached_stack(&mut stack.stack_impl);
-            aspawn::reserve_stack(&mut stack.stack_impl, 0, 0);
         }
         stack
     }
 
+    /// * `stack_sz` - the length of stack to reserve
+    /// * `obj_on_stack_len` - the size of all objects you want to put on this stack
     pub fn reserve(&mut self,
-                   reserved_stack_sz: usize, obj_to_place_on_stack_len: usize) -> i32 {
-        let ret;
+                   stack_sz: usize, obj_on_stack_len: usize) -> Result<(), SyscallError> {
         unsafe {
-            ret = aspawn::reserve_stack(&mut self.stack_impl,
-                                        reserved_stack_sz as u64,
-                                        obj_to_place_on_stack_len as u64);
+            toResult(aspawn::reserve_stack(&mut self.stack_impl,
+                                           stack_sz as u64,
+                                           obj_on_stack_len as u64))?;
         }
-        ret
+        Ok(())
     }
 }
 impl Default for Stack {
