@@ -12,8 +12,6 @@ pub mod error;
 /// lowlevel wrapper of aspawn and syscall
 pub mod lowlevel;
 
-pub use error::SyscallError;
-
 extern crate once_cell;
 
 #[cfg(test)]
