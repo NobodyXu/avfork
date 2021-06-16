@@ -2,15 +2,12 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-#[cfg(not(doctest))]
-
-use std::os::raw::c_int;
-
 mod binding {
     include!(concat!(env!("OUT_DIR"), "/syscall_binding.rs"));
 }
 
 pub use binding::{sigset_t, pid_t};
+use std::os::raw::c_int;
 
 pub struct Fd {
     fd: c_int,
