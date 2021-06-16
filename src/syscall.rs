@@ -7,7 +7,7 @@ pub use std::os::raw::c_int;
 include!(concat!(env!("OUT_DIR"), "/syscall_binding.rs"));
 
 pub mod wrapper {
-    use std::os::raw::c_int;
+    use crate::syscall::*;
 
     pub struct Fd {
         fd: c_int,
@@ -21,5 +21,12 @@ pub mod wrapper {
             }
         }
     }
-    pub const AT_FDCWD: Fd = Fd { fd: crate::syscall::AT_FDCWD };
+    impl Drop for Fd {
+        fn drop(&mut self) {
+            unsafe {
+                psys_close(self.fd);
+            }
+        }
+    }
+    pub static AT_FDCWD: Fd = Fd { fd: crate::syscall::AT_FDCWD };
 }
