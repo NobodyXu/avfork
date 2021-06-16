@@ -1,10 +1,18 @@
 use std::mem;
+use std::pin::Pin;
+use std::os::raw::c_void;
 
 use crate::error;
 use crate::aspawn;
+use crate::syscall;
 
 pub use error::SyscallError;
 use error::toResult;
+
+pub use syscall::sigset_t;
+pub use syscall::pid_t;
+pub use syscall::c_int;
+pub use syscall::wrapper::Fd;
 
 pub struct Stack {
     stack_impl: aspawn::Stack_t,
@@ -86,4 +94,40 @@ impl<'a> StackObjectAllocator<'a> {
             }
         }
     }
+}
+
+/// AspawnFn takes a Fd and sigset and returns a c_int as exit status
+pub trait AvforkFn: Fn(Fd, &mut sigset_t) -> c_int {}
+
+unsafe extern "C" fn aspawn_fn<Func: AvforkFn>(arg: *mut c_void, write_end_fd: c_int,
+                             old_sigset: *mut c_void) -> c_int {
+    let func = & *(arg as *const Func);
+
+    let fd = match Fd::new(write_end_fd) {
+        Ok(fd) => fd,
+        Err(_) => return 1
+    };
+
+    func(fd, &mut *(old_sigset as *mut sigset_t))
+}
+
+pub fn avfork<Func: AvforkFn>(stack_alloc: &StackObjectAllocator, func: Pin<&Func>)
+    -> Result<pid_t, SyscallError>
+{
+    use aspawn::aspawn;
+
+    let mut stack = stack_alloc.stack_impl;
+    let func_ref = func.get_ref();
+
+    let mut pid: pid_t = 0;
+
+    let callback = Option::Some(
+        aspawn_fn::<Func> as unsafe extern "C" fn (_, _, _) -> _
+    );
+    
+    toResult(unsafe {
+        aspawn(&mut pid, &mut stack, callback, func_ref as *const _ as *mut c_void)
+    })?;
+
+    Ok(pid)
 }
