@@ -79,14 +79,19 @@ impl<'a> StackObjectAllocator<'a> {
     }
 
     pub fn alloc_obj<T>(&mut self, obj: T) -> Result<StackBox<T>, T> {
+        let align = mem::align_of::<T>();
         let size = mem::size_of::<T>();
-        // TODO: Align pointer
+
+        let remnant = size % align;
+        let size = size + if remnant != 0 { align - remnant } else { 0 };
+
         if (self.alloc_obj_sz + size) > self.reserved_obj_sz {
             Err(obj)
         } else {
             let addr;
             unsafe {
-                addr = aspawn::allocate_obj_on_stack(&mut self.stack_impl, size as u64);
+                let size = size as u64;
+                addr = aspawn::allocate_obj_on_stack(&mut self.stack_impl, size);
             }
 
             let addr = addr as *mut T;
