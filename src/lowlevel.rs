@@ -138,7 +138,10 @@ impl<'a, T> DerefMut for StackBox<'a, T> {
     }
 }
 
-/// AspawnFn takes a Fd and sigset and returns a c_int as exit status
+/// AspawnFn takes a Fd and sigset of the parent program, returns a c_int as exit status
+/// When this function is called, it is guaranteed that:
+///  - all signals are masked,
+///  - all signal handlers are cleared,
 pub trait AvforkFn: Fn(Fd, &mut sigset_t) -> c_int {}
 
 unsafe extern "C"
@@ -149,6 +152,17 @@ fn aspawn_fn<Func: AvforkFn>(arg: *mut c_void, write_end_fd: c_int,
     func(Fd::from_raw(write_end_fd), &mut *(old_sigset as *mut sigset_t))
 }
 
+/// Returns fd of read end of CLOEXEC pipe and the pid of the child process.
+///
+/// avfork would disable thread cancellation, then it would revert it before return.
+///
+/// It would also mask all signals in parent and reset the signal handler in 
+/// the child process.
+/// Before aspawn returns in parent, it would revert the signal mask.
+///
+/// In the function fn, you can only use syscall declared in syscall
+/// Use of any glibc function or any function that modifies 
+/// global/thread-local variable is undefined behavior.
 pub fn avfork<Func: AvforkFn>(stack_alloc: &StackObjectAllocator, func: Pin<&Func>)
     -> Result<(Fd, pid_t), SyscallError>
 {
