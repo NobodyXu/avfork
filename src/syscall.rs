@@ -21,4 +21,5 @@ pub mod wrapper {
             }
         }
     }
+    pub const AT_FDCWD: Fd = Fd { fd: crate::syscall::AT_FDCWD };
 }
