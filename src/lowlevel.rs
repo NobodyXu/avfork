@@ -99,7 +99,8 @@ impl<'a> StackObjectAllocator<'a> {
 /// AspawnFn takes a Fd and sigset and returns a c_int as exit status
 pub trait AvforkFn: Fn(Fd, &mut sigset_t) -> c_int {}
 
-unsafe extern "C" fn aspawn_fn<Func: AvforkFn>(arg: *mut c_void, write_end_fd: c_int,
+unsafe extern "C"
+fn aspawn_fn<Func: AvforkFn>(arg: *mut c_void, write_end_fd: c_int,
                              old_sigset: *mut c_void) -> c_int {
     let func = & *(arg as *const Func);
 
