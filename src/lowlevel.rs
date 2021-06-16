@@ -1,5 +1,5 @@
-use std::ptr;
 use std::mem;
+use std::marker::PhantomData;
 
 use crate::error;
 use crate::aspawn;
@@ -9,9 +9,6 @@ use error::toResult;
 
 pub struct Stack {
     stack_impl: aspawn::Stack_t,
-    allocated_obj_sz: usize,
-    reserved_obj_sz: usize,
-    reserved_stack_sz: usize,
 }
 impl Default for Stack {
     fn default() -> Stack {
@@ -27,38 +24,45 @@ impl Drop for Stack {
 }
 impl Stack {
     pub fn new() -> Stack {
-        let mut stack = Stack {
-            stack_impl: aspawn::Stack_t {
-                addr: ptr::null_mut(),
-                size: 0
-            },
-            allocated_obj_sz: 0,
-            reserved_obj_sz: 0,
-            reserved_stack_sz: 0,
-        };
-        unsafe {
-            aspawn::init_cached_stack(&mut stack.stack_impl);
+        Stack {
+            stack_impl: aspawn::new_stack_t(),
         }
-        stack
     }
 
-    /// * `stack_sz` - the length of stack to reserve
-    /// * `obj_on_stack_len` - the size of all objects you want to put on this stack
-    fn reserve(&mut self,
-               reserved_stack_sz: usize, reserved_obj_sz: usize) -> Result<(), SyscallError> {
+    /// * `reserved_stack_sz` - the length of stack to reserve
+    /// * `reserved_obj_sz` - the size of all objects you want to put on this stack
+    pub fn reserve(&mut self, reserved_stack_sz: usize, reserved_obj_sz: usize)
+        -> Result<StackObjectAllocator, SyscallError>
+    {
         unsafe {
             toResult(aspawn::reserve_stack(&mut self.stack_impl,
                                            reserved_stack_sz as u64,
                                            reserved_obj_sz as u64))?;
         }
-        self.reserved_obj_sz = reserved_obj_sz;
-        self.reserved_stack_sz = reserved_stack_sz;
-        Ok(())
+        Ok(StackObjectAllocator::new(self.stack_impl, reserved_obj_sz))
+    }
+}
+pub struct StackObjectAllocator<'a> {
+    stack_impl: aspawn::Stack_t,
+    reserved_obj_sz: usize,
+    alloc_obj_sz: usize,
+    phantom: PhantomData<&'a Stack>,
+}
+impl<'a> StackObjectAllocator<'a> {
+    fn new<'b>(stack_impl: aspawn::Stack_t, reserved_obj_sz: usize)
+        -> StackObjectAllocator<'b>
+    {
+        StackObjectAllocator {
+            stack_impl,
+            reserved_obj_sz,
+            alloc_obj_sz: 0,
+            phantom: PhantomData,
+        }
     }
 
-    fn alloc_obj<T>(&mut self, obj: T) -> Result<&mut T, T> {
+    pub fn alloc_obj<T>(&mut self, obj: T) -> Result<&mut T, T> {
         let size = mem::size_of::<T>();
-        if (self.allocated_obj_sz + size) > self.reserved_obj_sz {
+        if (self.alloc_obj_sz + size) > self.reserved_obj_sz {
             Err(obj)
         } else {
             let addr;
@@ -68,6 +72,7 @@ impl Stack {
 
             let addr = addr as *mut T;
             unsafe {
+                // overwrite addr without dropping
                 addr.write(obj);
                 Ok(&mut (*addr))
             }
