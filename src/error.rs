@@ -11,7 +11,7 @@ pub struct SyscallError {
     errno: u32,
 }
 
-/// @param result return value of syscall
+/// * `result` - return value of syscall
 pub fn toResult(result: i32) -> Result<u32, SyscallError> {
     if result >= 0 {
         Ok(result as u32)
@@ -22,6 +22,7 @@ pub fn toResult(result: i32) -> Result<u32, SyscallError> {
     }
 }
 
+// TODO: convert errno_msgs to str at compile-time
 impl fmt::Display for SyscallError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let msg = unsafe { CStr::from_ptr(errno_msgs[self.errno as usize]) }
