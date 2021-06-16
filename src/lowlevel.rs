@@ -171,7 +171,7 @@ pub fn avfork<Func: AvforkFn>(stack_alloc: &StackObjectAllocator, func: Pin<&Fun
 {
     use aspawn::aspawn;
 
-    let mut stack = stack_alloc.stack_impl;
+    let stack = stack_alloc.stack_impl;
     let func_ref = func.get_ref();
 
     let mut pid: pid_t = 0;
@@ -181,7 +181,7 @@ pub fn avfork<Func: AvforkFn>(stack_alloc: &StackObjectAllocator, func: Pin<&Fun
     );
     
     let fd = toResult(unsafe {
-        aspawn(&mut pid, &mut stack, callback, to_void_ptr(func_ref))
+        aspawn(&mut pid, &stack, callback, to_void_ptr(func_ref))
     })?;
 
     Ok((Fd::from_raw(fd as i32), pid))
@@ -205,7 +205,7 @@ pub fn avfork_rec<Func: AvforkFn>(
 {
     use aspawn::aspawn_rec;
 
-    let mut stack = stack_alloc.stack_impl;
+    let stack = stack_alloc.stack_impl;
     let func_ref = func.get_ref();
 
     let mut pid: pid_t = 0;
@@ -216,7 +216,7 @@ pub fn avfork_rec<Func: AvforkFn>(
     
     let fd = toResult(unsafe {
         let arg = to_void_ptr(func_ref);
-        aspawn_rec(&mut pid, &mut stack, callback, arg, to_void_ptr(old_sigset))
+        aspawn_rec(&mut pid, &stack, callback, arg, to_void_ptr(old_sigset))
     })?;
 
     Ok((Fd::from_raw(fd as i32), pid))
