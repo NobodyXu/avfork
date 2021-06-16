@@ -43,7 +43,13 @@ pub fn get_errno_msgs() -> &'static errno_msgs_t {
 
 impl fmt::Display for SyscallError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Errno {}: {}", self.errno, get_errno_msgs()[self.errno as usize])
+        let error_msg;
+        if self.errno < errno_msgs_sz as u32 {
+            error_msg = get_errno_msgs()[self.errno as usize];
+        } else {
+            error_msg = "Unknown errno code";
+        }
+        write!(f, "Errno {}: {}", self.errno, error_msg)
     }
 }
 
