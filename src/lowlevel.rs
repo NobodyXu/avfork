@@ -221,3 +221,11 @@ pub fn avfork_rec<Func: AvforkFn>(
 
     Ok((Fd::from_raw(fd as i32), pid))
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        assert_eq!(2 + 2, 4);
+    }
+}
