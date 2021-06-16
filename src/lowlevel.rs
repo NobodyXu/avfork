@@ -1,6 +1,8 @@
 use std::mem;
 use std::pin::Pin;
+use std::ops::{Deref, DerefMut};
 use std::os::raw::c_void;
+use std::marker::PhantomData;
 
 use crate::error;
 use crate::aspawn;
@@ -76,8 +78,9 @@ impl<'a> StackObjectAllocator<'a> {
         }
     }
 
-    pub fn alloc_obj<T>(&mut self, obj: T) -> Result<&mut T, T> {
+    pub fn alloc_obj<T>(&mut self, obj: T) -> Result<StackBox<T>, T> {
         let size = mem::size_of::<T>();
+        // TODO: Align pointer
         if (self.alloc_obj_sz + size) > self.reserved_obj_sz {
             Err(obj)
         } else {
@@ -90,9 +93,41 @@ impl<'a> StackObjectAllocator<'a> {
             unsafe {
                 // overwrite addr without dropping
                 addr.write(obj);
-                Ok(&mut (*addr))
             }
+            Ok(StackBox::new(addr))
         }
+    }
+}
+
+pub struct StackBox<'a, T> {
+    ptr: *mut T,
+    phantom: PhantomData<&'a T>,
+}
+impl<'a, T> StackBox<'a, T> {
+    fn new(ptr: *mut T) -> StackBox<'a, T> {
+        StackBox {
+            ptr,
+            phantom: PhantomData
+        }
+    }
+}
+impl<'a, T> Drop for StackBox<'a, T> {
+    fn drop(&mut self) {
+        unsafe {
+            self.ptr.drop_in_place();
+        }
+    }
+}
+impl<'a, T> Deref for StackBox<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { & *self.ptr }
+    }
+}
+impl<'a, T> DerefMut for StackBox<'a, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { &mut *self.ptr }
     }
 }
 
