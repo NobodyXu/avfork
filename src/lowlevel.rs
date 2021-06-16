@@ -29,9 +29,9 @@ impl Default for Stack {
 }
 impl Drop for Stack {
     fn drop(&mut self) {
-        unsafe {
-            aspawn::cleanup_stack(&self.stack_impl);
-        }
+        toResult(unsafe {
+            aspawn::cleanup_stack(&self.stack_impl)
+        }).expect("Failed to deallocate the stack");
     }
 }
 impl Stack {
