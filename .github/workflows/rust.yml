@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Install Dependency
+      run: sudo apt update && sudo apt install -y lld
     - name: Build
       run: cargo build --verbose
     - name: Run tests
