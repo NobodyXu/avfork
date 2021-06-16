@@ -115,6 +115,9 @@ impl<'a, T> StackBox<'a, T> {
             phantom: PhantomData
         }
     }
+    pub fn pin(&self) -> Pin<&T> {
+        unsafe { Pin::new_unchecked(&self) }
+    }
 }
 impl<'a, T> Drop for StackBox<'a, T> {
     fn drop(&mut self) {
@@ -144,12 +147,7 @@ fn aspawn_fn<Func: AvforkFn>(arg: *mut c_void, write_end_fd: c_int,
                              old_sigset: *mut c_void) -> c_int {
     let func = & *(arg as *const Func);
 
-    let fd = match Fd::new(write_end_fd) {
-        Ok(fd) => fd,
-        Err(_) => return 1
-    };
-
-    func(fd, &mut *(old_sigset as *mut sigset_t))
+    func(Fd::from_raw(write_end_fd), &mut *(old_sigset as *mut sigset_t))
 }
 
 pub fn avfork<Func: AvforkFn>(stack_alloc: &StackObjectAllocator, func: Pin<&Func>)

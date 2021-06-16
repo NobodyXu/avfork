@@ -13,12 +13,8 @@ pub mod wrapper {
         fd: c_int,
     }
     impl Fd {
-        pub fn new(fd: c_int) -> Result<Fd, ()> {
-            if fd >= 0 {
-                Ok(Fd {fd})
-            } else {
-                Err(())
-            }
+        pub fn from_raw(fd: c_int) -> Fd {
+            Fd { fd }
         }
     }
     impl Drop for Fd {
