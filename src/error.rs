@@ -4,6 +4,7 @@
 
 use std::ffi::CStr;
 use std::fmt;
+use std::slice::from_raw_parts;
 
 use once_cell::sync::OnceCell;
 
@@ -30,9 +31,12 @@ pub fn get_errno_msgs() -> &'static errno_msgs_t {
 
     ERRNO_MSGS.get_or_init(|| {
         let mut strs  = ["1"; errno_msgs_sz as usize];
+        let msgs = unsafe {
+            from_raw_parts(get_errno_msgs_cstrs(), errno_msgs_sz as usize)
+        };
 
         for (i, each) in strs.iter_mut().enumerate() {
-            *each = unsafe { CStr::from_ptr(errno_msgs[i]) }
+            *each = unsafe { CStr::from_ptr(msgs[i]) }
                 .to_str()
                 .expect("Internal error: errno_msg defined in C cannot be used in Rust");
         }
