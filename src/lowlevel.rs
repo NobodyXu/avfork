@@ -18,6 +18,13 @@ impl Default for Stack {
         Stack::new()
     }
 }
+impl Drop for Stack {
+    fn drop(&mut self) {
+        unsafe {
+            aspawn::cleanup_stack(&self.stack_impl);
+        }
+    }
+}
 impl Stack {
     pub fn new() -> Stack {
         let mut stack = Stack {
