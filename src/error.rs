@@ -62,3 +62,13 @@ impl fmt::Debug for SyscallError {
         fmt::Display::fmt(self, f)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::error::*;
+
+    #[test]
+    fn test_get_errno_msgs() {
+        println!("{:#?}", get_errno_msgs());
+    }
+}
