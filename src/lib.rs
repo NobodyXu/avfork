@@ -14,6 +14,8 @@ pub mod lowlevel;
 
 pub use error::SyscallError;
 
+extern crate once_cell;
+
 #[cfg(test)]
 mod tests {
     #[test]
