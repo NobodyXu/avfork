@@ -3,6 +3,9 @@ pub mod aspawn;
 /// rust bindings for syscall.h, generated using rust-bindgen
 pub mod syscall;
 
+/// utilty functions used in this library
+pub mod utility;
+
 /// wrapper for errno_msg and provide an easy-to-use interface
 pub mod error;
 
