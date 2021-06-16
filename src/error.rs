@@ -9,6 +9,7 @@ use once_cell::sync::OnceCell;
 
 include!(concat!(env!("OUT_DIR"), "/errno_msgs_binding.rs"));
 
+#[derive(Debug)]
 pub struct SyscallError {
     errno: u32,
 }
