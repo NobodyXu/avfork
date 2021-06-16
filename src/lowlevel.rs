@@ -7,6 +7,7 @@ use std::marker::PhantomData;
 use crate::error;
 use crate::aspawn;
 use crate::syscall;
+use crate::utility;
 
 pub use error::SyscallError;
 use error::toResult;
@@ -15,6 +16,8 @@ pub use syscall::sigset_t;
 pub use syscall::pid_t;
 pub use syscall::c_int;
 pub use syscall::wrapper::Fd;
+
+use utility::to_void_ptr;
 
 pub struct Stack {
     stack_impl: aspawn::Stack_t,
@@ -178,7 +181,42 @@ pub fn avfork<Func: AvforkFn>(stack_alloc: &StackObjectAllocator, func: Pin<&Fun
     );
     
     let fd = toResult(unsafe {
-        aspawn(&mut pid, &mut stack, callback, func_ref as *const _ as *mut c_void)
+        aspawn(&mut pid, &mut stack, callback, to_void_ptr(func_ref))
+    })?;
+
+    Ok((Fd::from_raw(fd as i32), pid))
+}
+
+/// * `old_sigset` - the sigset retrieved in your AspawnFn
+/// Returns fd of read end of CLOEXEC pipe and the pid of the child process.
+///
+/// avfork would disable thread cancellation, then it would revert it before return.
+///
+/// It would also mask all signals in parent and reset the signal handler in 
+/// the child process.
+/// Before aspawn returns in parent, it would revert the signal mask.
+///
+/// In the function fn, you can only use syscall declared in syscall
+/// Use of any glibc function or any function that modifies 
+/// global/thread-local variable is undefined behavior.
+pub fn avfork_rec<Func: AvforkFn>(
+    stack_alloc: &StackObjectAllocator, func: Pin<&Func>, old_sigset: &sigset_t)
+    -> Result<(Fd, pid_t), SyscallError>
+{
+    use aspawn::aspawn_rec;
+
+    let mut stack = stack_alloc.stack_impl;
+    let func_ref = func.get_ref();
+
+    let mut pid: pid_t = 0;
+
+    let callback = Option::Some(
+        aspawn_fn::<Func> as unsafe extern "C" fn (_, _, _) -> _
+    );
+    
+    let fd = toResult(unsafe {
+        let arg = to_void_ptr(func_ref);
+        aspawn_rec(&mut pid, &mut stack, callback, arg, to_void_ptr(old_sigset))
     })?;
 
     Ok((Fd::from_raw(fd as i32), pid))
