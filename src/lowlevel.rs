@@ -150,7 +150,7 @@ fn aspawn_fn<Func: AvforkFn>(arg: *mut c_void, write_end_fd: c_int,
 }
 
 pub fn avfork<Func: AvforkFn>(stack_alloc: &StackObjectAllocator, func: Pin<&Func>)
-    -> Result<pid_t, SyscallError>
+    -> Result<(Fd, pid_t), SyscallError>
 {
     use aspawn::aspawn;
 
@@ -163,9 +163,9 @@ pub fn avfork<Func: AvforkFn>(stack_alloc: &StackObjectAllocator, func: Pin<&Fun
         aspawn_fn::<Func> as unsafe extern "C" fn (_, _, _) -> _
     );
     
-    toResult(unsafe {
+    let fd = toResult(unsafe {
         aspawn(&mut pid, &mut stack, callback, func_ref as *const _ as *mut c_void)
     })?;
 
-    Ok(pid)
+    Ok((Fd::from_raw(fd as i32), pid))
 }
