@@ -1,7 +1,7 @@
 use std::mem;
 use std::pin::Pin;
 use std::ops::{Deref, DerefMut};
-use std::os::raw::c_void;
+use std::os::raw::{c_void, c_int};
 use std::marker::PhantomData;
 
 use crate::error;
@@ -14,8 +14,7 @@ use error::toResult;
 
 pub use syscall::sigset_t;
 pub use syscall::pid_t;
-pub use syscall::c_int;
-pub use syscall::wrapper::Fd;
+pub use syscall::Fd;
 
 use utility::to_void_ptr;
 

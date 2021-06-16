@@ -2,27 +2,29 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-pub use std::os::raw::c_int;
+#[cfg(not(doctest))]
 
-include!(concat!(env!("OUT_DIR"), "/syscall_binding.rs"));
+use std::os::raw::c_int;
 
-pub mod wrapper {
-    use crate::syscall::*;
-
-    pub struct Fd {
-        fd: c_int,
-    }
-    impl Fd {
-        pub fn from_raw(fd: c_int) -> Fd {
-            Fd { fd }
-        }
-    }
-    impl Drop for Fd {
-        fn drop(&mut self) {
-            unsafe {
-                psys_close(self.fd);
-            }
-        }
-    }
-    pub static AT_FDCWD: Fd = Fd { fd: crate::syscall::AT_FDCWD };
+mod binding {
+    include!(concat!(env!("OUT_DIR"), "/syscall_binding.rs"));
 }
+
+pub use binding::{sigset_t, pid_t};
+
+pub struct Fd {
+    fd: c_int,
+}
+impl Fd {
+    pub fn from_raw(fd: c_int) -> Fd {
+        Fd { fd }
+    }
+}
+impl Drop for Fd {
+    fn drop(&mut self) {
+        unsafe {
+            binding::psys_close(self.fd);
+        }
+    }
+}
+pub static AT_FDCWD: Fd = Fd { fd: binding::AT_FDCWD };
