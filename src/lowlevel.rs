@@ -48,7 +48,7 @@ impl Stack {
                                            reserved_stack_sz as u64,
                                            reserved_obj_sz as u64))?;
         }
-        Ok(StackObjectAllocator::new(&self.stack_impl, self.stack_impl, reserved_obj_sz))
+        Ok(StackObjectAllocator::new(self.stack_impl, reserved_obj_sz))
     }
 }
 
@@ -56,25 +56,24 @@ impl Stack {
 ///  - any allocation on the stack only stay as long as StackObjectAllocator
 ///  - prevent reallocation of Stack
 pub struct StackObjectAllocator<'a> {
-    #[allow(dead_code)]
-    reference: &'a aspawn::Stack_t,
     stack_impl: aspawn::Stack_t,
     reserved_obj_sz: usize,
     alloc_obj_sz: usize,
+    phantom: PhantomData<&'a Stack>
 }
 
 #[allow(non_camel_case_types)]
 type Stack_t = aspawn::Stack_t;
 
 impl<'a> StackObjectAllocator<'a> {
-    fn new(reference: &'a Stack_t, stack_impl: Stack_t, reserved_obj_sz: usize)
+    fn new(stack_impl: Stack_t, reserved_obj_sz: usize)
         -> StackObjectAllocator<'a>
     {
         StackObjectAllocator {
-            reference,
             stack_impl,
             reserved_obj_sz,
             alloc_obj_sz: 0,
+            phantom: PhantomData,
         }
     }
 
