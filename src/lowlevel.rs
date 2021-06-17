@@ -191,7 +191,7 @@ pub fn avfork<Func: AvforkFn>(stack_alloc: &StackObjectAllocator, func: Pin<&Fun
     Ok((Fd::from_raw(fd as i32), pid))
 }
 
-/// * `old_sigset` - the sigset retrieved in your AspawnFn
+/// * `old_sigset` - you should pass the sigset argument in your AspawnFn
 /// Returns fd of read end of CLOEXEC pipe and the pid of the child process.
 ///
 /// avfork would disable thread cancellation, then it would revert it before return.
