@@ -23,6 +23,6 @@ jobs:
     - name: Listing the dir for debugging
       run: tree
     - name: Build
-      run: sh -c "cargo build -vv; status=$?; ls -lsh aspawn/; exit $?"
+      run: sh -c "cargo build -vv; status=$?; ls -lsh aspawn/; exit $status"
     - name: Run tests
       run: cargo test --verbose
