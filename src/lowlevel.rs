@@ -266,7 +266,7 @@ mod tests {
 
         let allocator = stack.reserve(0, mem::size_of::<u64>()).unwrap();
 
-        let i1 = allocator.alloc_obj(1 as u64).unwrap();
+        let _i1 = allocator.alloc_obj(1 as u64).unwrap();
         
         assert_matches!(allocator.alloc_obj(2333), Result::Err(2333));
     }
@@ -305,7 +305,7 @@ mod tests {
             type T = Box::<i64>;
             let allocator = stack.reserve(0, mem::size_of::<T>()).unwrap();
 
-            let mut b = allocator.alloc_obj(T::new(2333)).unwrap();
+            let b = allocator.alloc_obj(T::new(2333)).unwrap();
 
             let p1 = b.pin().get_ref() as *const _;
             let p2 = (& *b) as *const _;
@@ -314,7 +314,7 @@ mod tests {
         }
     }
 
-    fn dummy_avfork_callback(fd: Fd, _old_sigset: &mut sigset_t) -> c_int {
+    fn dummy_avfork_callback(_fd: Fd, _old_sigset: &mut sigset_t) -> c_int {
         0
     }
 
@@ -329,7 +329,7 @@ mod tests {
             Err(_) => panic!("allocation failed"),
         };
 
-        let (fd, pid) = avfork(&allocator, f.pin()).unwrap();
+        let (fd, _pid) = avfork(&allocator, f.pin()).unwrap();
 
         let mut buf = [1 as u8; 1];
         match fd.read(&mut buf) {
