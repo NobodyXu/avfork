@@ -21,6 +21,6 @@ jobs:
     - name: Install Dependency
       run: sudo apt update && sudo apt install -y lld
     - name: Build
-      run: cargo build --verbose || ls -lsh aspawn/
+      run: sh -c "cargo build -vv; ls -lsh aspawn/"
     - name: Run tests
       run: cargo test --verbose
