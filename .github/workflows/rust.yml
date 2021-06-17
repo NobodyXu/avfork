@@ -33,4 +33,4 @@ jobs:
       - name: Build
         run: RUSTFLAGS="-C link-args=-fuse-ld=lld -Z sanitizer=address" cargo +nightly build -v
       - name: Run tests
-        run: RUSTFLAGS="-C link-args=-fuse-ld=lld -Z sanitizer=address" cargo +nightly test -v
+        run: RUSTFLAGS="-C link-args=-fuse-ld=lld -Z sanitizer=address" cargo +nightly test -v -- --nocapture
