@@ -24,4 +24,6 @@ impl Drop for Fd {
         }
     }
 }
+
+// Use static here to ensure AT_FDCWD never get dropped
 pub static AT_FDCWD: Fd = Fd { fd: binding::AT_FDCWD };
