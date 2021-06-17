@@ -268,7 +268,7 @@ mod tests {
     fn test_stack_reserve() {
         let mut stack = Stack::new();
 
-        {
+        for _ in 0..3 {
             type T = Box::<i64>;
             let allocator = stack.reserve(0, 200 * mem::size_of::<T>()).unwrap();
 
