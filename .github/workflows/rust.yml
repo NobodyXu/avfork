@@ -22,6 +22,10 @@ jobs:
       run: sudo apt update && sudo apt upgrade -y && sudo apt install -y lld
     - name: Listing the dir for debugging
       run: tree
+    - name: List version of the software:
+      run: cargo --version
+      run: clang --version
+      run: lld --version
     - name: Build
       run: sh -c "cargo build -vv; status=$?; ls -lsh aspawn/; exit $status"
     - name: Run tests
