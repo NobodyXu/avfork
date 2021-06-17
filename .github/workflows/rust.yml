@@ -26,6 +26,6 @@ jobs:
       - name: Listing the dir for debugging
         run: tree
       - name: Build
-        run: cargo build -vv
+        run: cargo build -v
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test -v
