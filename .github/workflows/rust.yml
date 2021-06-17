@@ -27,6 +27,6 @@ jobs:
       run: clang --version
       run: lld --version
     - name: Build
-      run: sh -c "cargo build -vv; status=$?; ls -lsh aspawn/; exit $status"
+      run: cargo build -vv
     - name: Run tests
       run: cargo test --verbose
