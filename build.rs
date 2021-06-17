@@ -46,10 +46,8 @@ fn main() {
     // Tell cargo to tell rustc to link the aspawn statically
     println!("cargo:rustc-link-lib=static=aspawn");
 
-    // Tell cargo to invalidate the built crate whenever the wrapper changes
-    println!("cargo:rerun-if-changed=aspawn/aspawn.h");
-    println!("cargo:rerun-if-changed=aspawn/syscall/syscall.h");
-    println!("cargo:rerun-if-changed=aspawn/syscall/errno_msgs.h");
+    // Tell cargo to invalidate the built crate whenever the submodule changes
+    println!("cargo:rerun-if-changed=aspawn");
 
     gen_binding("aspawn/aspawn.h", "aspawn_binding.rs");
     gen_binding("aspawn/syscall/syscall.h", "syscall_binding.rs");
