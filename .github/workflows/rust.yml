@@ -19,7 +19,7 @@ jobs:
       with:
         submodules: recursive
     - name: Install Dependency
-      run: sudo apt update && sudo apt install -y lld
+      run: sudo apt-get update && sudo apt-get install -y lld
     - name: Listing the dir for debugging
       run: tree
     - name: List version of the software
