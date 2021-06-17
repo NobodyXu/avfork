@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: -A dead_code
+  #RUSTFLAGS: -A dead_code
 
 jobs:
   build:
