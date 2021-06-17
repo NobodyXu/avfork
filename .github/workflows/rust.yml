@@ -18,7 +18,7 @@ jobs:
         run: |
             set -xe
             apt-get update
-            apt-get install -y lsb-release wget software-properties-common
+            apt-get install -y lsb-release wget software-properties-common tree
       - name: Install latest llvm from the official repository
         run: bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
       - uses: actions/checkout@v2
