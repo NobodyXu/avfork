@@ -40,8 +40,11 @@ impl Stack {
         }
     }
 
-    /// * `reserved_stack_sz` - the length of stack to reserve
+    /// * `reserved_stack_sz` - the length of stack to reserve. Only required
+    ///   if you are doing recursive call or have a lot of local objects.
+    ///   reserve would unconditionally allocate (32 * 1024) bytes for basic operations.
     /// * `reserved_obj_sz` - the size of all objects you want to put on this stack
+    ///   using StackObjectAllocator::alloc_obj
     pub fn reserve(&mut self, reserved_stack_sz: usize, reserved_obj_sz: usize)
         -> Result<StackObjectAllocator, SyscallError>
     {
