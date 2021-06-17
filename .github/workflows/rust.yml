@@ -21,17 +21,17 @@ jobs:
             apt-get install -y --no-install-recommends lsb-release wget software-properties-common tree
       - name: Install latest llvm from the official repository
         run: bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
-      - uses: actions/checkout@v2
-        with:
-          submodules: recursive
-      - name: Listing the dir for debugging
-        run: tree
       - name: List version of the software
         run: |
           set -xe
           cargo --version
           clang --version
           ld.lld --version
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Listing the dir for debugging
+        run: tree
       - name: Build
         run: cargo build -vv
       - name: Run tests
