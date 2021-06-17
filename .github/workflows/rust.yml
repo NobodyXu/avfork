@@ -23,9 +23,11 @@ jobs:
     - name: Listing the dir for debugging
       run: tree
     - name: List version of the software
-       - run: cargo --version
-       - run: clang --version
-       - run: lld --version
+      run: |
+        set -xe
+        cargo --version
+        clang --version
+        lld --version
     - name: Build
       run: cargo build -vv
     - name: Run tests
