@@ -1,5 +1,6 @@
 use std::mem;
 use std::pin::Pin;
+use std::cell::UnsafeCell;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_void, c_int};
 use std::marker::PhantomData;
@@ -61,10 +62,16 @@ impl Stack {
 ///  - any allocation on the stack only stay as long as StackObjectAllocator
 ///  - prevent reallocation of Stack
 pub struct StackObjectAllocator<'a> {
-    stack_impl: aspawn::Stack_t,
+    /// Inferior Mutability is required since all StackBox created
+    /// borrows StackObjectAllocator.
+    ///
+    /// So in order for multiple `StackBox`es to be allocated, StackObjectAllocator
+    /// must be able to allocate using a immutable reference.
+    ///
+    /// cell stores a copy of Stack_t and alloc_obj_sz
+    cell: UnsafeCell<(aspawn::Stack_t, usize)>,
     reserved_obj_sz: usize,
-    alloc_obj_sz: usize,
-    phantom: PhantomData<&'a Stack>
+    phantom: PhantomData<&'a Stack>,
 }
 
 #[allow(non_camel_case_types)]
@@ -75,27 +82,35 @@ impl<'a> StackObjectAllocator<'a> {
         -> StackObjectAllocator<'a>
     {
         StackObjectAllocator {
-            stack_impl,
+            cell: UnsafeCell::new((stack_impl, 0)),
             reserved_obj_sz,
-            alloc_obj_sz: 0,
             phantom: PhantomData,
         }
     }
 
-    pub fn alloc_obj<T>(&mut self, obj: T) -> Result<StackBox<T>, T> {
+    pub fn alloc_obj<T>(&self, obj: T) -> Result<StackBox<T>, T> {
         let align = mem::align_of::<T>();
         let size = mem::size_of::<T>();
 
         let remnant = size % align;
         let size = size + if remnant != 0 { align - remnant } else { 0 };
 
-        if (self.alloc_obj_sz + size) > self.reserved_obj_sz {
+        let alloc_obj_sz;
+        let stack_impl;
+
+        unsafe {
+            let cell = &mut *self.cell.get();
+            stack_impl = &mut cell.0;
+            alloc_obj_sz = &mut cell.1;
+        }
+
+        if (*alloc_obj_sz + size) > self.reserved_obj_sz {
             Err(obj)
         } else {
             let addr;
             unsafe {
                 let size = size as u64;
-                addr = aspawn::allocate_obj_on_stack(&mut self.stack_impl, size);
+                addr = aspawn::allocate_obj_on_stack(stack_impl, size);
             }
 
             let addr = addr as *mut T;
@@ -175,7 +190,7 @@ pub fn avfork<Func: AvforkFn>(stack_alloc: &StackObjectAllocator, func: Pin<&Fun
 {
     use aspawn::aspawn;
 
-    let stack = stack_alloc.stack_impl;
+    let stack = unsafe { (*stack_alloc.cell.get()).0 };
     let func_ref = func.get_ref();
 
     let mut pid: pid_t = 0;
@@ -209,7 +224,7 @@ pub fn avfork_rec<Func: AvforkFn>(
 {
     use aspawn::aspawn_rec;
 
-    let stack = stack_alloc.stack_impl;
+    let stack = unsafe { (*stack_alloc.cell.get()).0 };
     let func_ref = func.get_ref();
 
     let mut pid: pid_t = 0;
@@ -241,7 +256,7 @@ mod tests {
 
         {
             type T = Box::<i64>;
-            let mut allocator = stack.reserve(0, 200 * mem::size_of::<T>()).unwrap();
+            let allocator = stack.reserve(0, 200 * mem::size_of::<T>()).unwrap();
 
             // simulate allocating 100 variables on the stack
             for i in 0..100 {
