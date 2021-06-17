@@ -272,12 +272,20 @@ mod tests {
             type T = Box::<i64>;
             let allocator = stack.reserve(0, 200 * mem::size_of::<T>()).unwrap();
 
+            let mut vars = Vec::<StackBox::<T>>::new();
+
             // simulate allocating 100 variables on the stack
             for i in 0..100 {
                 let mut b = allocator.alloc_obj(T::new(i)).unwrap();
                 assert_eq!(**b, i);
                 *b = T::new(2000);
                 assert_eq!(**b, 2000);
+
+                vars.push(b);
+            }
+
+            for b in &vars {
+                assert_eq!(***b, 2000);
             }
         }
     }
