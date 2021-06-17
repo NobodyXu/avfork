@@ -107,6 +107,8 @@ impl<'a> StackObjectAllocator<'a> {
         if (*alloc_obj_sz + size) > self.reserved_obj_sz {
             Err(obj)
         } else {
+            (*alloc_obj_sz) += size;
+
             let addr;
             unsafe {
                 let size = size as u64;
