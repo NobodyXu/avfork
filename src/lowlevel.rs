@@ -289,4 +289,21 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_stackbox_pin() {
+        let mut stack = Stack::new();
+
+        {
+            type T = Box::<i64>;
+            let allocator = stack.reserve(0, mem::size_of::<T>()).unwrap();
+
+            let mut b = allocator.alloc_obj(T::new(2333)).unwrap();
+
+            let p1 = b.pin().get_ref() as *const _;
+            let p2 = (& *b) as *const _;
+
+            assert_eq!(p1, p2);
+        }
+    }
 }
