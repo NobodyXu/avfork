@@ -11,26 +11,49 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
+    container: rust
     steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: recursive
-    - name: Add llvm official apt
-      run: sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" 11
-    - name: Install Dependency
-      run: sudo apt-get update && sudo apt-get install -y lld
-    - name: Listing the dir for debugging
-      run: tree
-    - name: List version of the software
-      run: |
-        set -xe
-        cargo --version
-        clang --version
-        ld.lld --version
-    - name: Build
-      run: cargo build -vv
-    - name: Run tests
-      run: cargo test --verbose
+      - name: Install Dependency
+        run: |
+            set -xe
+            apt-get update
+            apt-get install -y lsb-release wget software-properties-common
+      - name: Install latest llvm from the official repository
+        run: bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Listing the dir for debugging
+        run: tree
+      - name: List version of the software
+        run: |
+          set -xe
+          cargo --version
+          clang --version
+          ld.lld --version
+      - name: Build
+        run: cargo build -vv
+      - name: Run tests
+        run: cargo test --verbose
+
+#jobs:
+#  build:
+#
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#    - name: Install Dependency
+#      run: sudo apt-get update && sudo apt-get install -y lld
+#    - name: Listing the dir for debugging
+#      run: tree
+#    - name: List version of the software
+#      run: |
+#        set -xe
+#        cargo --version
+#        clang --version
+#        ld.lld --version
+#    - name: Build
+#      run: cargo build -vv
+#    - name: Run tests
+#      run: cargo test --verbose
