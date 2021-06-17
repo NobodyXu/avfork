@@ -10,10 +10,6 @@ use once_cell::sync::OnceCell;
 
 include!(concat!(env!("OUT_DIR"), "/errno_msgs_binding.rs"));
 
-pub struct SyscallError {
-    errno: u32,
-}
-
 /// * `result` - return value of syscall
 pub fn toResult(result: i64) -> Result<u64, SyscallError> {
     if result >= 0 {
@@ -45,6 +41,14 @@ pub fn get_errno_msgs() -> &'static errno_msgs_t {
     })
 }
 
+pub struct SyscallError {
+    errno: u32,
+}
+impl SyscallError {
+    pub fn get_errno(&self) -> u32 {
+        self.errno
+    }
+}
 impl fmt::Display for SyscallError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let error_msg;
@@ -56,7 +60,6 @@ impl fmt::Display for SyscallError {
         write!(f, "Errno {}: {}", self.errno, error_msg)
     }
 }
-
 impl fmt::Debug for SyscallError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self, f)
