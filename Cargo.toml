@@ -9,6 +9,9 @@ edition = "2018"
 [lib]
 doctest = false
 
+[profile.dev]
+split-debuginfo = "unpacked"
+
 [profile.release]
 lto = 'thin'
 
