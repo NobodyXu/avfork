@@ -228,8 +228,28 @@ pub fn avfork_rec<Func: AvforkFn>(
 
 #[cfg(test)]
 mod tests {
+    use crate::lowlevel::*;
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn test_stack_init() {
+        let _stack = Stack::new();
+    }
+
+    #[test]
+    fn test_stack_reserve() {
+        let mut stack = Stack::new();
+
+        {
+            type T = Box::<i64>;
+            let mut allocator = stack.reserve(0, 200 * mem::size_of::<T>()).unwrap();
+
+            // simulate allocating 100 variables on the stack
+            for i in 0..100 {
+                let mut b = allocator.alloc_obj(T::new(i)).unwrap();
+                assert_eq!(**b, i);
+                *b = T::new(2000);
+                assert_eq!(**b, 2000);
+            }
+        }
     }
 }
