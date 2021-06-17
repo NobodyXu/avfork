@@ -137,7 +137,7 @@ impl<'a, T> StackBox<'a, T> {
             phantom: PhantomData
         }
     }
-    pub fn pin(&self) -> Pin<&T> {
+    pub fn pin(&'a self) -> Pin<&'a T> {
         unsafe { Pin::new_unchecked(&self) }
     }
 }
