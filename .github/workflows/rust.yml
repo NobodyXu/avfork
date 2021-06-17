@@ -20,6 +20,8 @@ jobs:
         submodules: recursive
     - name: Install Dependency
       run: sudo apt update && sudo apt install -y lld
+    - name: Listing the dir for debugging
+      run: tree
     - name: Build
       run: sh -c "cargo build -vv; ls -lsh aspawn/"
     - name: Run tests
