@@ -27,7 +27,7 @@ jobs:
         set -xe
         cargo --version
         clang --version
-        lld --version
+        ld.lld --version
     - name: Build
       run: cargo build -vv
     - name: Run tests
