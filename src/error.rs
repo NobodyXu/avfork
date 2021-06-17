@@ -15,9 +15,9 @@ pub struct SyscallError {
 }
 
 /// * `result` - return value of syscall
-pub fn toResult(result: i32) -> Result<u32, SyscallError> {
+pub fn toResult(result: i64) -> Result<u64, SyscallError> {
     if result >= 0 {
-        Ok(result as u32)
+        Ok(result as u64)
     } else {
         Err(SyscallError{
             errno: (-result) as u32

@@ -30,7 +30,7 @@ impl Default for Stack {
 impl Drop for Stack {
     fn drop(&mut self) {
         toResult(unsafe {
-            aspawn::cleanup_stack(&self.stack_impl)
+            aspawn::cleanup_stack(&self.stack_impl) as i64
         }).expect("Failed to deallocate the stack");
     }
 }
@@ -52,7 +52,7 @@ impl Stack {
         unsafe {
             toResult(aspawn::reserve_stack(&mut self.stack_impl,
                                            reserved_stack_sz as u64,
-                                           reserved_obj_sz as u64))?;
+                                           reserved_obj_sz as u64) as i64)?;
         }
         Ok(StackObjectAllocator::new(self.stack_impl, reserved_obj_sz))
     }
@@ -204,7 +204,7 @@ pub fn avfork<Func>(stack_alloc: &StackObjectAllocator, func: Pin<&Func>)
     );
     
     let fd = toResult(unsafe {
-        aspawn(&mut pid, &stack, callback, to_void_ptr(func_ref))
+        aspawn(&mut pid, &stack, callback, to_void_ptr(func_ref)) as i64
     })?;
 
     Ok((Fd::from_raw(fd as i32), pid))
@@ -245,7 +245,7 @@ pub fn avfork_rec<Func>(
     
     let fd = toResult(unsafe {
         let arg = to_void_ptr(func_ref);
-        aspawn_rec(&mut pid, &stack, callback, arg, to_void_ptr(old_sigset))
+        aspawn_rec(&mut pid, &stack, callback, arg, to_void_ptr(old_sigset)) as i64
     })?;
 
     Ok((Fd::from_raw(fd as i32), pid))
