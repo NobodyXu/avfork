@@ -147,6 +147,8 @@ impl<'a, T> DerefMut for StackBox<'a, T> {
 /// When this function is called, it is guaranteed that:
 ///  - all signals are masked,
 ///  - all signal handlers are cleared,
+///
+/// **WARNING**: struct implements AspawnFn should not panic or allocate anything on heap
 pub trait AvforkFn: Fn(Fd, &mut sigset_t) -> c_int {}
 
 unsafe extern "C"
