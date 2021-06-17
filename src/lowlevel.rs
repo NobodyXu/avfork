@@ -334,7 +334,11 @@ mod tests {
             Err(_) => panic!("allocation failed"),
         };
 
+        println!("Calling avfork");
+
         let (fd, _pid) = avfork(&allocator, f.pin()).unwrap();
+
+        println!("avfork is done");
 
         let mut buf = [1 as u8; 1];
         match fd.read(&mut buf) {
