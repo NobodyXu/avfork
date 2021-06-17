@@ -46,24 +46,3 @@ jobs:
         run: cargo build -vv
       - name: Run tests
         run: cargo test --verbose
-
-#jobs:
-#  build:
-#
-#    runs-on: ubuntu-latest
-#
-#    steps:
-#    - name: Install Dependency
-#      run: sudo apt-get update && sudo apt-get install -y lld
-#    - name: Listing the dir for debugging
-#      run: tree
-#    - name: List version of the software
-#      run: |
-#        set -xe
-#        cargo --version
-#        clang --version
-#        ld.lld --version
-#    - name: Build
-#      run: cargo build -vv
-#    - name: Run tests
-#      run: cargo test --verbose
