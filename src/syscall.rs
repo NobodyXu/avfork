@@ -7,7 +7,9 @@ mod binding {
 }
 
 pub use binding::{sigset_t, pid_t};
-use std::os::raw::c_int;
+use std::os::raw::{c_void, c_int};
+
+use crate::error::{toResult, SyscallError};
 
 pub struct Fd {
     fd: c_int,
@@ -15,6 +17,12 @@ pub struct Fd {
 impl Fd {
     pub fn from_raw(fd: c_int) -> Fd {
         Fd { fd }
+    }
+
+    pub fn read(&self, buffer: &mut [u8]) -> Result<usize, SyscallError> {
+        let buf_ptr = buffer.as_mut_ptr() as *mut c_void;
+        let buf_len = buffer.len() as u64;
+        Ok(toResult(unsafe { binding::psys_read(self.fd, buf_ptr, buf_len) })? as usize)
     }
 }
 impl Drop for Fd {
