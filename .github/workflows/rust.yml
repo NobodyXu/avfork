@@ -20,7 +20,14 @@ jobs:
             apt-get update
             apt-get install -y --no-install-recommends lsb-release wget software-properties-common tree
       - name: Install latest llvm from the official repository
-        run: bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+        run: bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" 12
+      - name: Setup symlink for clang and lld
+        run: |
+            set -xe
+            update-alternatives --install /usr/bin/clang clang /usr/bin/clang-12 100
+            update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-12 100
+            update-alternatives --install /usr/bin/lld lld /usr/bin/lld-12 100
+            update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-12 100
       - name: List version of the software
         run: |
           set -xe
