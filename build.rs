@@ -3,7 +3,7 @@ extern crate bindgen;
 
 use std::env;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, exit};
 
 fn gen_binding(header: &str, output: &str) {
     // The bindgen::Builder is the main entry point
@@ -37,6 +37,7 @@ fn main() {
 
     if ! status.success() {
         println!("failed to make aspawn/: exit code = {:#?}", status.code());
+        exit(1);
     }
 
     // Tell cargo to where to find library aspawn
