@@ -323,25 +323,25 @@ mod tests {
         0
     }
 
-    //#[test]
-    //fn test_avfork_naive() {
-    //    let mut stack = Stack::new();
+    #[test]
+    fn test_avfork_naive() {
+        let mut stack = Stack::new();
 
-    //    let allocator = stack.reserve(0, 100).unwrap();
+        let allocator = stack.reserve(0, 100).unwrap();
 
-    //    let f = match allocator.alloc_obj(dummy_avfork_callback) {
-    //        Ok(f) => f,
-    //        Err(_) => panic!("allocation failed"),
-    //    };
+        let f = match allocator.alloc_obj(dummy_avfork_callback) {
+            Ok(f) => f,
+            Err(_) => panic!("allocation failed"),
+        };
 
-    //    let (fd, _pid) = avfork(&allocator, f.pin()).unwrap();
+        let (fd, _pid) = avfork(&allocator, f.pin()).unwrap();
 
-    //    let mut buf = [1 as u8; 1];
-    //    match fd.read(&mut buf) {
-    //        Ok(cnt) => assert_eq!(0, cnt),
-    //        Err(_) => panic!("There shouldn't be any error")
-    //    };
-    //}
+        let mut buf = [1 as u8; 1];
+        match fd.read(&mut buf) {
+            Ok(cnt) => assert_eq!(0, cnt),
+            Err(_) => panic!("There shouldn't be any error")
+        };
+    }
 
     // TODO:
     //fn dummy_avfork_rec_callback(fd: Fd, old_sigset: &mut sigset_t) -> c_int {
