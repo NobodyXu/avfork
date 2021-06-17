@@ -125,6 +125,7 @@ impl<'a> StackObjectAllocator<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct StackBox<'a, T> {
     ptr: *mut T,
     phantom: PhantomData<&'a T>,
@@ -250,6 +251,17 @@ mod tests {
     #[test]
     fn test_stack_init() {
         let _stack = Stack::new();
+    }
+
+    #[test]
+    fn test_stack_impossible_alloc() {
+        let mut stack = Stack::new();
+
+        let allocator = stack.reserve(0, mem::size_of::<u64>()).unwrap();
+
+        let i1 = allocator.alloc_obj(1 as u64).unwrap();
+        
+        assert_matches!(allocator.alloc_obj(2333), Result::Err(2333));
     }
 
     #[test]
