@@ -43,9 +43,11 @@ impl Stack {
 
     /// * `reserved_stack_sz` - the length of stack to reserve. Only required
     ///   if you are doing recursive call or have a lot of local objects.
-    ///   reserve would unconditionally allocate (32 * 1024) bytes for basic operations.
+    ///   reserve would unconditionally allocate (32 * 1024) bytes for basic operations
     /// * `reserved_obj_sz` - the size of all objects you want to put on this stack
     ///   using StackObjectAllocator::alloc_obj
+    ///
+    /// **This API is safe to be used inside avfork callback.**
     pub fn reserve(&mut self, reserved_stack_sz: usize, reserved_obj_sz: usize)
         -> Result<StackObjectAllocator, SyscallError>
     {
@@ -61,6 +63,8 @@ impl Stack {
 /// StackObjectAllocator is a special class used to ensure that:
 ///  - any allocation on the stack only stay as long as StackObjectAllocator
 ///  - prevent reallocation of Stack
+///
+/// **All APIs of this struct are safe to be used inside avfork callback.**
 pub struct StackObjectAllocator<'a> {
     /// Inferior Mutability is required since all StackBox created
     /// borrows StackObjectAllocator.
@@ -125,6 +129,7 @@ impl<'a> StackObjectAllocator<'a> {
     }
 }
 
+/// **All APIs of this struct are safe to be used inside avfork callback.**
 #[derive(Debug)]
 pub struct StackBox<'a, T> {
     ptr: *mut T,
