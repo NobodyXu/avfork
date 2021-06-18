@@ -1,9 +1,20 @@
 /* shamelessly copied from https://rust-lang.github.io/rust-bindgen/tutorial-3.html */
 extern crate bindgen;
+extern crate once_cell;
 
 use std::env;
 use std::path::PathBuf;
 use std::process::{Command, exit};
+
+use once_cell::sync::Lazy;
+
+static OUT_DIR: Lazy<String> = Lazy::new(|| {
+    env::var("OUT_DIR").unwrap()
+});
+
+static OUT_PATH: Lazy<PathBuf> = Lazy::new(|| {
+    PathBuf::from(env::var("OUT_DIR").unwrap())
+});
 
 fn gen_binding(header: &str, output: &str) {
     // The bindgen::Builder is the main entry point
@@ -22,9 +33,8 @@ fn gen_binding(header: &str, output: &str) {
         .expect("Unable to generate bindings");
 
     // Write the bindings to the $OUT_DIR/bindings.rs file.
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     bindings
-        .write_to_file(out_path.join(output))
+        .write_to_file(OUT_PATH.join(output))
         .expect("Couldn't write bindings!");
 }
 
