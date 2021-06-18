@@ -4,6 +4,7 @@ extern crate once_cell;
 
 use std::env;
 use std::path::PathBuf;
+use std::fs::canonicalize;
 use std::process::{Command, exit};
 
 use once_cell::sync::Lazy;
@@ -13,7 +14,7 @@ static OUT_DIR: Lazy<String> = Lazy::new(|| {
 });
 
 static OUT_PATH: Lazy<PathBuf> = Lazy::new(|| {
-    PathBuf::from(env::var("OUT_DIR").unwrap())
+    PathBuf::from((*OUT_DIR).clone())
 });
 
 fn gen_binding(header: &str, output: &str) {
@@ -39,19 +40,31 @@ fn gen_binding(header: &str, output: &str) {
 }
 
 fn main() {
+    let build_dir_path = canonicalize(&(*OUT_PATH))
+        .expect("Failed to canonicalize OUT_PATH")
+        .join("aspawn_build");
+
+    let build_dir = match build_dir_path.to_str() {
+        Some(s) => s.to_owned(),
+        None => panic!("Cannot convert canonicalized OUT_PATH to a valid utf-8 str")
+    };
+
+    println!("build_dir = {}", build_dir);
+
     let status = Command::new("sh")
-        .current_dir("aspawn/")
+        .current_dir("aspawn")
+        .env("BUILD_DIR", &build_dir)
         .args(&["-c", "make", "-j", "$(nproc)"])
         .status()
         .expect("failed to make aspawn/");
 
     if ! status.success() {
-        println!("failed to make aspawn/: exit code = {:#?}", status.code());
+        println!("failed to build submodule aspawn: exit code = {:#?}", status.code());
         exit(1);
     }
 
     // Tell cargo to where to find library aspawn
-    println!("cargo:rustc-link-search=native=aspawn");
+    println!("cargo:rustc-link-search=native={}", build_dir);
 
     // Tell cargo to tell rustc to link the aspawn statically
     println!("cargo:rustc-link-lib=static=aspawn");
