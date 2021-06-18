@@ -180,9 +180,10 @@ fn aspawn_fn<Func>(arg: *mut c_void, write_end_fd: c_int, old_sigset: *mut c_voi
 ///   When this function is called, it is guaranteed that:
 ///    - all signals are masked,
 ///    - all signal handlers are cleared,
+///   **WARNING**: func should not panic or allocate anything on heap
+///                It also should not close the fd passed in, otherwise its stack
+///                might get invalidated and SIGSEGV.
 ///
-/// **WARNING**: struct implements AspawnFn should not panic or allocate anything on heap
-
 /// Returns fd of read end of CLOEXEC pipe and the pid of the child process.
 ///
 /// avfork would disable thread cancellation, then it would revert it before return.
@@ -220,6 +221,9 @@ pub fn avfork<Func>(stack_alloc: &StackObjectAllocator, func: Pin<&Func>)
 ///   When this function is called, it is guaranteed that:
 ///    - all signals are masked,
 ///    - all signal handlers are cleared,
+///   **WARNING**: func should not panic or allocate anything on heap
+///                It also should not close the fd passed in, otherwise its stack
+///                might get invalidated and SIGSEGV.
 ///
 /// * `old_sigset` - you should pass the sigset argument in your AspawnFn
 /// Returns fd of read end of CLOEXEC pipe and the pid of the child process.
