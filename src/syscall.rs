@@ -49,6 +49,12 @@ impl Fd {
         let buf_len = buffer.len() as u64;
         Ok(toResult(unsafe { binding::psys_read(self.fd, buf_ptr, buf_len) })? as usize)
     }
+
+    pub fn write(&self, buffer: &[u8]) -> Result<usize, SyscallError> {
+        let buf_ptr = buffer.as_ptr() as *const c_void;
+        let buf_len = buffer.len() as u64;
+        Ok(toResult(unsafe { binding::psys_write(self.fd, buf_ptr, buf_len) })? as usize)
+    }
 }
 
 // Use static here to ensure AT_FDCWD never get dropped
