@@ -15,7 +15,7 @@ use error::toResult;
 
 pub use syscall::sigset_t;
 pub use syscall::pid_t;
-pub use syscall::Fd;
+pub use syscall::{Fd, FdBox};
 
 use utility::to_void_ptr;
 
@@ -195,7 +195,7 @@ fn aspawn_fn<Func>(arg: *mut c_void, write_end_fd: c_int, old_sigset: *mut c_voi
 /// Use of any glibc function or any function that modifies 
 /// global/thread-local variable is undefined behavior.
 pub fn avfork<Func>(stack_alloc: &StackObjectAllocator, func: Pin<&Func>)
-    -> Result<(Fd, pid_t), SyscallError> where Func: Fn(Fd, &mut sigset_t) -> c_int 
+    -> Result<(FdBox, pid_t), SyscallError> where Func: Fn(Fd, &mut sigset_t) -> c_int 
 {
     use aspawn::aspawn;
 
@@ -212,7 +212,7 @@ pub fn avfork<Func>(stack_alloc: &StackObjectAllocator, func: Pin<&Func>)
         aspawn(&mut pid, &stack, callback, to_void_ptr(func_ref)) as i64
     })?;
 
-    Ok((Fd::from_raw(fd as i32), pid))
+    Ok((FdBox::from_raw(fd as i32), pid))
 }
 
 /// * `func` - takes a Fd and sigset of the parent program, returns a c_int as 
@@ -235,7 +235,7 @@ pub fn avfork<Func>(stack_alloc: &StackObjectAllocator, func: Pin<&Func>)
 /// global/thread-local variable is undefined behavior.
 pub fn avfork_rec<Func>(
     stack_alloc: &StackObjectAllocator, func: Pin<&Func>, old_sigset: &sigset_t)
-    -> Result<(Fd, pid_t), SyscallError> where Func: Fn(Fd, &mut sigset_t) -> c_int 
+    -> Result<(FdBox, pid_t), SyscallError> where Func: Fn(Fd, &mut sigset_t) -> c_int 
 {
     use aspawn::aspawn_rec;
 
@@ -253,7 +253,7 @@ pub fn avfork_rec<Func>(
         aspawn_rec(&mut pid, &stack, callback, arg, to_void_ptr(old_sigset)) as i64
     })?;
 
-    Ok((Fd::from_raw(fd as i32), pid))
+    Ok((FdBox::from_raw(fd as i32), pid))
 }
 
 #[cfg(test)]
