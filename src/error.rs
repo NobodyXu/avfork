@@ -48,16 +48,18 @@ impl SyscallError {
     pub fn get_errno(&self) -> u32 {
         self.errno
     }
+    pub fn get_msg(&self) -> &'static str {
+        /* self.errno should be in range 1..errno_msgs_sz */
+        if self.errno <= errno_msgs_sz as u32 {
+            get_errno_msgs()[(self.errno as usize) - 1]
+        } else {
+            "Unknown errno code"
+        }
+    }
 }
 impl fmt::Display for SyscallError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let error_msg;
-        if self.errno < errno_msgs_sz as u32 {
-            error_msg = get_errno_msgs()[self.errno as usize];
-        } else {
-            error_msg = "Unknown errno code";
-        }
-        write!(f, "Errno {}: {}", self.errno, error_msg)
+        write!(f, "Errno {}: {}", self.errno, self.get_msg())
     }
 }
 impl fmt::Debug for SyscallError {
