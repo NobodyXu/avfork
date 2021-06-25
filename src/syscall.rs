@@ -122,9 +122,9 @@ impl Fd {
     }
 
     /// Check manpage for dup3 for more documentation.
-    pub fn dup3(&self, newfd: c_int, flags: c_int) -> Result<FdBox, SyscallError> {
+    pub fn dup3(&self, newfd: c_int, flags: FdFlags) -> Result<FdBox, SyscallError> {
         let oldfd = self.fd;
-        let fd = toResult(unsafe { binding::psys_dup3(oldfd, newfd, flags) } as i64)?;
+        let fd = toResult(unsafe { binding::psys_dup3(oldfd, newfd, flags.bits) } as i64)?;
         Ok(FdBox::from_raw(fd as c_int))
     }
 
