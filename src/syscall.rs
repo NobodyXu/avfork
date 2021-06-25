@@ -253,3 +253,12 @@ pub fn getpid() -> pid_t {
         binding::psys_getpid()
     }
 }
+
+pub fn sched_setparam(pid: pid_t, param: &libc::sched_param) -> Result<(), SyscallError> {
+    let result = unsafe {
+        binding::psys_sched_setparam(pid, param as *const _ as *const c_void)
+    };
+    toResult(result as i64)?;
+
+    Ok(())
+}
