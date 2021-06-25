@@ -13,6 +13,7 @@ pub mod error;
 pub mod lowlevel;
 
 extern crate once_cell;
+extern crate libc;
 
 #[cfg(test)]
 #[macro_use] extern crate assert_matches;
