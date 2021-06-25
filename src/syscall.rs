@@ -36,6 +36,7 @@ impl Deref for FdBox {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct Fd {
     fd: c_int,
 }
