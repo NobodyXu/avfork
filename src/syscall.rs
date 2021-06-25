@@ -50,6 +50,44 @@ bitflags! {
         const O_TMPFILE = libc::O_TMPFILE;
     }
 }
+bitflags! {
+    pub struct Mode: binding::mode_t {
+        /// user (file owner) has read, write, and execute permission
+        const S_IRWXU = 0x00700;
+        /// user has read permission
+        const S_IRUSR = 0x00400;
+        /// user has write permission
+        const S_IWUSR = 0x00200;
+        /// user has execute permission
+        const S_IXUSR = 0x00100;
+        /// group has read, write, and execute permission
+        const S_IRWXG = 0x00070;
+        /// group has read permission
+        const S_IRGRP = 0x00040;
+        /// group has write permission
+        const S_IWGRP = 0x00020;
+        /// group has execute permission
+        const S_IXGRP = 0x00010;
+        /// others have read, write, and execute permission
+        const S_IRWXO = 0x00007;
+        /// others have read permission
+        const S_IROTH = 0x00004;
+        /// others have write permission
+        const S_IWOTH = 0x00002;
+        /// others have execute permission
+        const S_IXOTH = 0x00001;
+
+        // According to POSIX, the effect when other bits are set in mode is unspecified.
+        // On Linux, the following bits are also honored in mode:
+
+        /// set-user-ID bit
+        const S_ISUID = 0x0004000;
+        /// set-group-ID bit (see inode(7)).
+        const S_ISGID = 0x0002000;
+        /// sticky bit (see inode(7)).
+        const S_ISVTX = 0x0001000;
+    }
+}
 
 pub struct FdBox {
     fd: Fd,
@@ -100,7 +138,7 @@ impl FdBox {
     ///  * `pathname` - must be a null-terminated utf-8 string
     pub unsafe fn creatat(
         dirfd: Fd, pathname: &str, accMode: AccessMode, flags: FdFlags,
-        cflags: FdCreatFlags, exclusive: bool, mode: binding::mode_t
+        cflags: FdCreatFlags, exclusive: bool, mode: Mode
     )
         -> Result<FdBox, SyscallError>
     {
@@ -109,7 +147,7 @@ impl FdBox {
             flags |= libc::O_EXCL;
         }
 
-        FdBox::openat_impl(dirfd, pathname, flags, mode)
+        FdBox::openat_impl(dirfd, pathname, flags, mode.bits)
     }
 
     /// Returns (read end, write end)
