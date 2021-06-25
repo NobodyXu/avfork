@@ -14,6 +14,28 @@ pub use binding::{sigset_t, pid_t};
 
 use crate::error::{toResult, SyscallError};
 
+bitflags! {
+    pub struct FdFlags: c_int {
+        const O_APPEND = libc::O_APPEND;
+        const O_TRUNC = libc::O_TRUNC;
+        const O_CLOEXEC = libc::O_CLOEXEC;
+
+        const O_ASYNC = libc::O_ASYNC;
+        const O_DSYNC = libc::O_DSYNC;
+        const O_SYNC = libc::O_SYNC;
+        const O_DIRECT = libc::O_DIRECT;
+
+        const O_DIRECTORY = libc::O_DIRECTORY;
+        const O_PATH = libc::O_PATH;
+
+        const O_LARGEFILE = libc::O_LARGEFILE;
+        const O_NOATIME = libc::O_NOATIME;
+        const O_NOCTTY = libc::O_NOCTTY;
+        const O_NOFOLLOW = libc::O_NOFOLLOW;
+        const O_NONBLOCK = libc::O_NONBLOCK;
+    }
+}
+
 pub struct FdBox {
     fd: Fd,
 }
@@ -22,15 +44,33 @@ impl FdBox {
         FdBox { fd: Fd{fd} }
     }
 
+    ///  * `dirfd` - can be `AT_FDCWD`
+    ///  * `mode` - ignored if O_CREAT is not passed
+    ///
     /// Check manpage for openat for more documentation.
+    ///
     /// # Safety
     ///  * `pathname` - must be a null-terminated utf-8 string
-    pub unsafe fn openat(dirfd: Fd, pathname: &str, flags: c_int, mode: binding::mode_t)
+    unsafe fn openat_impl(dirfd: Fd, pathname: &str, flags: c_int, mode: binding::mode_t)
         -> Result<FdBox, SyscallError>
     {
         let pathname = CStr::from_bytes_with_nul_unchecked(pathname.as_bytes()).as_ptr();
         let fd = toResult(binding::psys_openat(dirfd.fd, pathname, flags, mode) as i64)?;
         Ok(FdBox::from_raw(fd as c_int))
+    }
+
+    /// Open existing file.
+    ///
+    ///  * `dirfd` - can be `AT_FDCWD`
+    ///
+    /// Check manpage for openat for more documentation.
+    ///
+    /// # Safety
+    ///  * `pathname` - must be a null-terminated utf-8 string
+    pub unsafe fn openat(dirfd: Fd, pathname: &str, flags: FdFlags)
+        -> Result<FdBox, SyscallError>
+    {
+        FdBox::openat_impl(dirfd, pathname, flags.bits, 0)
     }
 
     /// Returns (read end, write end)
