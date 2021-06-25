@@ -262,3 +262,14 @@ pub fn sched_setparam(pid: pid_t, param: &libc::sched_param) -> Result<(), Sysca
 
     Ok(())
 }
+
+pub fn sched_getparam(pid: pid_t) -> Result<libc::sched_param, SyscallError> {
+    let mut param = std::mem::MaybeUninit::<libc::sched_param>::uninit();
+
+    let result = unsafe {
+        binding::psys_sched_getparam(pid, param.as_mut_ptr() as *mut c_void)
+    };
+    toResult(result as i64)?;
+
+    Ok(unsafe { param.assume_init() })
+}
