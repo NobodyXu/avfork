@@ -325,3 +325,26 @@ pub fn sched_getscheduler(pid: pid_t) -> Result<SchedPolicy, SyscallError> {
         _ => unimplemented!()
     })
 }
+
+pub fn sched_setscheduler(pid: pid_t, policy: &SchedPolicy) -> Result<(), SyscallError> {
+    let nullptr: *const libc::sched_param = std::ptr::null();
+
+    let setter = |policy, param| -> Result<(), SyscallError> {
+        let result = unsafe {
+            binding::psys_sched_setscheduler(pid, policy, param as *const c_void)
+        };
+
+        toResult(result as i64)?;
+
+        Ok(())
+    };
+
+    match policy {
+        SchedPolicy::SCHED_OTHER => setter(libc::SCHED_OTHER, nullptr),
+        SchedPolicy::SCHED_BATCH => setter(libc::SCHED_BATCH, nullptr),
+        SchedPolicy::SCHED_IDLE => setter(libc::SCHED_IDLE, nullptr),
+
+        SchedPolicy::SCHED_FIFO(param) => setter(libc::SCHED_FIFO, param as *const _),
+        SchedPolicy::SCHED_RR(param) => setter(libc::SCHED_RR, param as *const _),
+    }
+}
