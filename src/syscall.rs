@@ -10,7 +10,7 @@ use std::ops::Deref;
 use std::os::raw::{c_void, c_int};
 use std::ffi::CStr;
 
-pub use binding::{sigset_t, pid_t};
+pub use binding::{sigset_t, pid_t, uid_t, gid_t};
 
 use crate::error::{toResult, SyscallError};
 
@@ -225,4 +225,11 @@ pub fn chdir(pathname: &CStr) -> Result<(), SyscallError>
 
 pub fn get_pagesz() -> usize {
     unsafe { binding::psys_get_pagesz() as usize }
+}
+
+pub fn setresuid(ruid: uid_t, euid: uid_t, suid: uid_t) -> Result<(), SyscallError> {
+    unsafe {
+        toResult(binding::psys_setresuid(ruid, euid, suid) as i64)?;
+    };
+    Ok(())
 }
