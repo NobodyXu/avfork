@@ -14,6 +14,8 @@ pub mod lowlevel;
 
 extern crate once_cell;
 extern crate libc;
+#[macro_use]
+extern crate bitflags;
 
 #[cfg(test)]
 #[macro_use] extern crate assert_matches;
