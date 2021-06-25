@@ -22,6 +22,7 @@ impl FdBox {
         FdBox { fd: Fd{fd} }
     }
 
+    /// Check manpage for openat for more documentation.
     /// # Safety
     /// `pathname` - must be a null-terminated utf-8 string
     pub unsafe fn openat(dirfd: Fd, pathname: &str, flags: c_int, mode: binding::mode_t)
@@ -44,6 +45,7 @@ impl FdBox {
         Ok(( FdBox::from_raw(pipefd[0]), FdBox::from_raw(pipefd[1]) ))
     }
 
+    /// Check manpage for dup3 for more documentation.
     pub fn dup3(&self, newfd: c_int, flags: c_int) -> Result<FdBox, SyscallError> {
         let oldfd = self.fd.fd;
         let fd = toResult(unsafe { binding::psys_dup3(oldfd, newfd, flags) } as i64)?;
