@@ -304,3 +304,24 @@ impl std::fmt::Debug for SchedPolicy {
         }
     }
 }
+
+/// **WARNING**: This method does not retrieves sched_param, so in the return value
+/// they will be set to 0.
+pub fn sched_getscheduler(pid: pid_t) -> Result<SchedPolicy, SyscallError> {
+    let result = unsafe {
+        toResult(binding::psys_sched_getscheduler(pid) as i64 )? as i32
+    };
+
+    let param = libc::sched_param { sched_priority: 0 };
+
+    Ok(match result {
+        libc::SCHED_OTHER => SchedPolicy::SCHED_OTHER,
+        libc::SCHED_BATCH => SchedPolicy::SCHED_BATCH,
+        libc::SCHED_IDLE => SchedPolicy::SCHED_IDLE,
+
+        libc::SCHED_FIFO => SchedPolicy::SCHED_FIFO(param),
+        libc::SCHED_RR => SchedPolicy::SCHED_RR(param),
+
+        _ => unimplemented!()
+    })
+}
