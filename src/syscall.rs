@@ -31,6 +31,12 @@ impl FdBox {
         let fd = toResult(binding::psys_openat(dirfd.fd, pathname, flags, mode) as i64)?;
         Ok(FdBox::from_raw(fd as c_int))
     }
+
+    pub fn dup3(&self, newfd: c_int, flags: c_int) -> Result<FdBox, SyscallError> {
+        let oldfd = self.fd.fd;
+        let fd = toResult(unsafe { binding::psys_dup3(oldfd, newfd, flags) } as i64)?;
+        Ok(FdBox::from_raw(fd as c_int))
+    }
 }
 impl Drop for FdBox {
     fn drop(&mut self) {
