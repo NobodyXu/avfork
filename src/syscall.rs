@@ -112,3 +112,6 @@ pub unsafe fn chdir(pathname: &str) -> Result<(), SyscallError>
     Ok(())
 }
 
+pub fn get_pagesz() -> usize {
+    unsafe { binding::psys_get_pagesz() as usize }
+}
