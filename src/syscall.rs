@@ -233,3 +233,10 @@ pub fn setresuid(ruid: uid_t, euid: uid_t, suid: uid_t) -> Result<(), SyscallErr
     };
     Ok(())
 }
+
+pub fn setresgid(rgid: gid_t, egid: gid_t, sgid: gid_t) -> Result<(), SyscallError> {
+    unsafe {
+        toResult(binding::psys_setresgid(rgid, egid, sgid) as i64)?;
+    };
+    Ok(())
+}
