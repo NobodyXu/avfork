@@ -44,22 +44,6 @@ impl FdBox {
 
         Ok(( FdBox::from_raw(pipefd[0]), FdBox::from_raw(pipefd[1]) ))
     }
-
-    /// Check manpage for dup3 for more documentation.
-    pub fn dup3(&self, newfd: c_int, flags: c_int) -> Result<FdBox, SyscallError> {
-        let oldfd = self.fd.fd;
-        let fd = toResult(unsafe { binding::psys_dup3(oldfd, newfd, flags) } as i64)?;
-        Ok(FdBox::from_raw(fd as c_int))
-    }
-
-    /// Check manpage for fchdir for more documentation.
-    pub fn fchdir(&self) -> Result<(), SyscallError> {
-        let fd = self.fd.fd;
-
-        toResult(unsafe { binding::psys_fchdir(fd) } as i64)?;
-
-        Ok(())
-    }
 }
 impl Drop for FdBox {
     fn drop(&mut self) {
@@ -95,6 +79,22 @@ impl Fd {
         let buf_ptr = buffer.as_ptr() as *const c_void;
         let buf_len = buffer.len() as u64;
         Ok(toResult(unsafe { binding::psys_write(self.fd, buf_ptr, buf_len) })? as usize)
+    }
+
+    /// Check manpage for dup3 for more documentation.
+    pub fn dup3(&self, newfd: c_int, flags: c_int) -> Result<FdBox, SyscallError> {
+        let oldfd = self.fd;
+        let fd = toResult(unsafe { binding::psys_dup3(oldfd, newfd, flags) } as i64)?;
+        Ok(FdBox::from_raw(fd as c_int))
+    }
+
+    /// Check manpage for fchdir for more documentation.
+    pub fn fchdir(&self) -> Result<(), SyscallError> {
+        let fd = self.fd;
+
+        toResult(unsafe { binding::psys_fchdir(fd) } as i64)?;
+
+        Ok(())
     }
 }
 
