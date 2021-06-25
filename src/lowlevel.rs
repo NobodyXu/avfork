@@ -19,6 +19,7 @@ pub use syscall::{Fd, FdBox};
 
 use utility::to_void_ptr;
 
+#[derive(Debug)]
 pub struct Stack {
     stack_impl: aspawn::Stack_t,
 }
@@ -65,6 +66,7 @@ impl Stack {
 ///  - prevent reallocation of Stack
 ///
 /// **All APIs of this struct are safe to be used inside avfork callback.**
+#[derive(Debug)]
 pub struct StackObjectAllocator<'a> {
     /// Inferior Mutability is required since all StackBox created
     /// borrows StackObjectAllocator.
