@@ -89,6 +89,7 @@ bitflags! {
     }
 }
 
+#[derive(Debug)]
 pub struct FdBox {
     fd: Fd,
 }
@@ -172,7 +173,7 @@ impl Deref for FdBox {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Fd {
     fd: c_int,
 }
