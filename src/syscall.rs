@@ -247,3 +247,9 @@ pub fn setgroups(list: &[gid_t]) -> Result<(), SyscallError> {
     };
     Ok(())
 }
+
+pub fn getpid() -> pid_t {
+    unsafe {
+        binding::psys_getpid()
+    }
+}
