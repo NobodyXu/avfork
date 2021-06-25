@@ -235,6 +235,8 @@ pub fn avfork<Func>(stack_alloc: &StackObjectAllocator, func: Pin<&Func>)
     Ok((FdBox::from_raw(fd as i32), pid))
 }
 
+/// **NOT TESTED**
+///
 /// * `func` - takes a Fd and sigset of the parent program, returns a c_int as 
 ///   exit status.
 ///   When this function is called, it is guaranteed that:
