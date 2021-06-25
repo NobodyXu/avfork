@@ -240,3 +240,10 @@ pub fn setresgid(rgid: gid_t, egid: gid_t, sgid: gid_t) -> Result<(), SyscallErr
     };
     Ok(())
 }
+
+pub fn setgroups(list: &[gid_t]) -> Result<(), SyscallError> {
+    unsafe {
+        toResult(binding::psys_setgroups(list.len() as u64, list.as_ptr()) as i64)?;
+    };
+    Ok(())
+}
