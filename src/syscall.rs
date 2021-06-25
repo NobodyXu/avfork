@@ -273,3 +273,34 @@ pub fn sched_getparam(pid: pid_t) -> Result<libc::sched_param, SyscallError> {
 
     Ok(unsafe { param.assume_init() })
 }
+
+#[derive(Copy, Clone)]
+pub enum SchedPolicy {
+    /// the standard round-robin time-sharing policy;
+    SCHED_OTHER,
+    /// for "batch" style execution of processes; and
+    SCHED_BATCH,
+    /// for running very low priority background jobs.
+    SCHED_IDLE,
+
+    // real-time policies:
+
+    /// a first-in, first-out policy; and
+    SCHED_FIFO(libc::sched_param),
+    /// a round-robin policy.
+    SCHED_RR(libc::sched_param),
+}
+impl std::fmt::Debug for SchedPolicy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SchedPolicy::SCHED_OTHER => write!(f, "SCHED_OTHER"),
+            SchedPolicy::SCHED_BATCH => write!(f, "SCHED_BATCH"),
+            SchedPolicy::SCHED_IDLE => write!(f, "SCHED_IDLE"),
+
+            SchedPolicy::SCHED_FIFO(param) =>
+                write!(f, "SCHED_FIFO({})", param.sched_priority),
+            SchedPolicy::SCHED_RR(param) =>
+                write!(f, "SCHED_RR({})", param.sched_priority),
+        }
+    }
+}
