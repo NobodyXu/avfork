@@ -51,6 +51,15 @@ impl FdBox {
         let fd = toResult(unsafe { binding::psys_dup3(oldfd, newfd, flags) } as i64)?;
         Ok(FdBox::from_raw(fd as c_int))
     }
+
+    /// Check manpage for fchdir for more documentation.
+    pub fn fchdir(&self) -> Result<(), SyscallError> {
+        let fd = self.fd.fd;
+
+        toResult(unsafe { binding::psys_fchdir(fd) } as i64)?;
+
+        Ok(())
+    }
 }
 impl Drop for FdBox {
     fn drop(&mut self) {
