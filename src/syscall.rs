@@ -8,6 +8,7 @@ mod binding {
 
 use std::ops::Deref;
 use std::os::raw::{c_void, c_int};
+use std::ffi::CStr;
 
 pub use binding::{sigset_t, pid_t};
 
@@ -19,6 +20,16 @@ pub struct FdBox {
 impl FdBox {
     pub fn from_raw(fd: c_int) -> FdBox {
         FdBox { fd: Fd{fd} }
+    }
+
+    /// # Safety
+    /// `pathname` - must be a null-terminated utf-8 string
+    pub unsafe fn openat(dirfd: Fd, pathname: &str, flags: c_int, mode: binding::mode_t)
+        -> Result<FdBox, SyscallError>
+    {
+        let pathname = CStr::from_bytes_with_nul_unchecked(pathname.as_bytes()).as_ptr();
+        let fd = toResult(binding::psys_openat(dirfd.fd, pathname, flags, mode) as i64)?;
+        Ok(FdBox::from_raw(fd as c_int))
     }
 }
 impl Drop for FdBox {
