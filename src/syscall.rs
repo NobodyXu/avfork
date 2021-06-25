@@ -216,12 +216,10 @@ pub static AT_FDCWD: Fd = Fd { fd: binding::AT_FDCWD };
 
 
 /// Check manpage for chdir for more documentation.
-/// # Safety
-///  * `pathname` - must be a null-terminated utf-8 string
-pub unsafe fn chdir(pathname: &str) -> Result<(), SyscallError>
+pub fn chdir(pathname: &CStr) -> Result<(), SyscallError>
 {
-    let pathname = CStr::from_bytes_with_nul_unchecked(pathname.as_bytes()).as_ptr();
-    toResult(binding::psys_chdir(pathname) as i64)?;
+    let pathname = pathname.as_ptr();
+    toResult(unsafe { binding::psys_chdir(pathname) as i64 })?;
     Ok(())
 }
 
