@@ -14,6 +14,15 @@ pub use binding::{sigset_t, pid_t};
 
 use crate::error::{toResult, SyscallError};
 
+// Here it relies on the compiler to check that i32 == c_int
+#[repr(i32)]
+#[derive(Copy, Clone, Debug)]
+pub enum AccessMode {
+    O_RDONLY = libc::O_RDONLY,
+    O_WRONLY = libc::O_WRONLY,
+    O_RDWR   = libc::O_RDWR
+}
+
 bitflags! {
     pub struct FdFlags: c_int {
         const O_APPEND = libc::O_APPEND;
@@ -73,10 +82,10 @@ impl FdBox {
     ///
     /// # Safety
     ///  * `pathname` - must be a null-terminated utf-8 string
-    pub unsafe fn openat(dirfd: Fd, pathname: &str, flags: FdFlags)
+    pub unsafe fn openat(dirfd: Fd, pathname: &str, accMode: AccessMode, flags: FdFlags)
         -> Result<FdBox, SyscallError>
     {
-        FdBox::openat_impl(dirfd, pathname, flags.bits, 0)
+        FdBox::openat_impl(dirfd, pathname, (accMode as i32) | flags.bits, 0)
     }
 
     /// Open existing file.
@@ -90,12 +99,12 @@ impl FdBox {
     /// # Safety
     ///  * `pathname` - must be a null-terminated utf-8 string
     pub unsafe fn creatat(
-        dirfd: Fd, pathname: &str, flags: FdFlags,
+        dirfd: Fd, pathname: &str, accMode: AccessMode, flags: FdFlags,
         cflags: FdCreatFlags, exclusive: bool, mode: binding::mode_t
     )
         -> Result<FdBox, SyscallError>
     {
-        let mut flags = flags.bits | cflags.bits;
+        let mut flags = (accMode as i32) | flags.bits | cflags.bits;
         if exclusive {
             flags |= libc::O_EXCL;
         }
