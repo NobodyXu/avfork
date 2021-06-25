@@ -66,7 +66,6 @@ impl Stack {
 ///  - prevent reallocation of Stack
 ///
 /// **All APIs of this struct are safe to be used inside avfork callback.**
-#[derive(Debug)]
 pub struct StackObjectAllocator<'a> {
     /// Inferior Mutability is required since all StackBox created
     /// borrows StackObjectAllocator.
@@ -128,6 +127,23 @@ impl<'a> StackObjectAllocator<'a> {
             }
             Ok(StackBox::new(addr))
         }
+    }
+}
+impl<'a> std::fmt::Debug for StackObjectAllocator<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let reserved_obj_sz = &self.reserved_obj_sz;
+
+        let alloc_obj_sz;
+        let stack_impl;
+
+        unsafe {
+            let cell = & *self.cell.get();
+            stack_impl = &cell.0;
+            alloc_obj_sz = &cell.1;
+        }
+
+        write!(f, "{{stack = {:#?}, alloc_obj_sz = {:#?}, reserved_obj_sz = {:#?}}}",
+                  stack_impl, alloc_obj_sz, reserved_obj_sz)
     }
 }
 
