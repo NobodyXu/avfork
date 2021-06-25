@@ -35,6 +35,12 @@ bitflags! {
         const O_NONBLOCK = libc::O_NONBLOCK;
     }
 }
+bitflags! {
+    pub struct FdCreatFlags: c_int {
+        const O_CREAT = libc::O_CREAT;
+        const O_TMPFILE = libc::O_TMPFILE;
+    }
+}
 
 pub struct FdBox {
     fd: Fd,
@@ -71,6 +77,30 @@ impl FdBox {
         -> Result<FdBox, SyscallError>
     {
         FdBox::openat_impl(dirfd, pathname, flags.bits, 0)
+    }
+
+    /// Open existing file.
+    ///
+    ///  * `dirfd` - can be `AT_FDCWD`
+    ///  * `exclusive` - if yes, then O_EXCL flags is specified when attempting to
+    ///    create the file.
+    ///
+    /// Check manpage for openat for more documentation.
+    ///
+    /// # Safety
+    ///  * `pathname` - must be a null-terminated utf-8 string
+    pub unsafe fn creatat(
+        dirfd: Fd, pathname: &str, flags: FdFlags,
+        cflags: FdCreatFlags, exclusive: bool, mode: binding::mode_t
+    )
+        -> Result<FdBox, SyscallError>
+    {
+        let mut flags = flags.bits | cflags.bits;
+        if exclusive {
+            flags |= libc::O_EXCL;
+        }
+
+        FdBox::openat_impl(dirfd, pathname, flags, mode)
     }
 
     /// Returns (read end, write end)
