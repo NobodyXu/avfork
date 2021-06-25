@@ -32,6 +32,18 @@ impl FdBox {
         Ok(FdBox::from_raw(fd as c_int))
     }
 
+    /// Returns (read end, write end)
+    ///
+    /// Check manpage for pipe2 for more documentation.
+    pub fn pipe2(flag: c_int) -> Result<(FdBox, FdBox), SyscallError> {
+        #[allow(clippy::unnecessary_cast)]
+        let mut pipefd = [-1 as c_int; 2];
+
+        toResult(unsafe { binding::psys_pipe2(pipefd.as_mut_ptr(), flag) } as i64)?;
+
+        Ok(( FdBox::from_raw(pipefd[0]), FdBox::from_raw(pipefd[1]) ))
+    }
+
     pub fn dup3(&self, newfd: c_int, flags: c_int) -> Result<FdBox, SyscallError> {
         let oldfd = self.fd.fd;
         let fd = toResult(unsafe { binding::psys_dup3(oldfd, newfd, flags) } as i64)?;
