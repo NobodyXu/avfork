@@ -101,14 +101,15 @@ impl FdBox {
     ///  * `mode` - ignored if O_CREAT is not passed
     ///
     /// Check manpage for openat for more documentation.
-    ///
-    /// # Safety
-    ///  * `pathname` - must be a null-terminated utf-8 string
-    unsafe fn openat_impl(dirfd: Fd, pathname: &str, flags: c_int, mode: binding::mode_t)
+    fn openat_impl(dirfd: Fd, pathname: &CStr, flags: c_int, mode: binding::mode_t)
         -> Result<FdBox, SyscallError>
     {
-        let pathname = CStr::from_bytes_with_nul_unchecked(pathname.as_bytes()).as_ptr();
-        let fd = toResult(binding::psys_openat(dirfd.fd, pathname, flags, mode) as i64)?;
+        let pathname = pathname.as_ptr();
+
+        let result = unsafe {
+            binding::psys_openat(dirfd.fd, pathname, flags, mode)
+        };
+        let fd = toResult(result as i64)?;
         Ok(FdBox::from_raw(fd as c_int))
     }
 
@@ -117,10 +118,7 @@ impl FdBox {
     ///  * `dirfd` - can be `AT_FDCWD`
     ///
     /// Check manpage for openat for more documentation.
-    ///
-    /// # Safety
-    ///  * `pathname` - must be a null-terminated utf-8 string
-    pub unsafe fn openat(dirfd: Fd, pathname: &str, accMode: AccessMode, flags: FdFlags)
+    pub fn openat(dirfd: Fd, pathname: &CStr, accMode: AccessMode, flags: FdFlags)
         -> Result<FdBox, SyscallError>
     {
         FdBox::openat_impl(dirfd, pathname, (accMode as i32) | flags.bits, 0)
@@ -133,11 +131,8 @@ impl FdBox {
     ///    create the file.
     ///
     /// Check manpage for openat for more documentation.
-    ///
-    /// # Safety
-    ///  * `pathname` - must be a null-terminated utf-8 string
-    pub unsafe fn creatat(
-        dirfd: Fd, pathname: &str, accMode: AccessMode, flags: FdFlags,
+    pub fn creatat(
+        dirfd: Fd, pathname: &CStr, accMode: AccessMode, flags: FdFlags,
         cflags: FdCreatFlags, exclusive: bool, mode: Mode
     )
         -> Result<FdBox, SyscallError>
