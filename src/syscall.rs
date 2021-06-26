@@ -7,13 +7,13 @@ mod binding {
 }
 
 use std::ops::Deref;
-use std::os::raw::{c_void, c_int, c_long};
+use std::os::raw::{c_void, c_int, c_long, c_char};
 use std::ffi::CStr;
 
 pub use binding::{sigset_t, pid_t, uid_t, gid_t};
 
 use crate::error::{toResult, SyscallError};
-use crate::utility::*;
+use crate::utility::to_void_ptr;
 
 // Here it relies on the compiler to check that i32 == c_int
 #[repr(i32)]
@@ -551,4 +551,36 @@ pub fn exit(status: c_int) -> ! {
         binding::psys_exit(status);
     }
     unimplemented!()
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct CStrArray<'a> {
+    arr: &'a [*const c_char]
+}
+impl<'a> CStrArray<'a> {
+    pub fn new(arr: &'a [*const c_char]) -> Option<CStrArray<'a>> {
+        if let Some(last) = arr.last() {
+            if *last == std::ptr::null() {
+                return Some(CStrArray { arr });
+            }
+        }
+
+        None
+    }
+    
+    pub fn as_ptr(&self) -> *const *const c_char {
+        self.arr.as_ptr()
+    }
+}
+
+pub fn execve(pathname: &CStr, argv: CStrArray, envp: CStrArray) -> SyscallError
+{
+    let ret = unsafe {
+        binding::psys_execve(pathname.as_ptr(), argv.as_ptr(), envp.as_ptr())
+    };
+
+    match toResult(ret as i64) {
+        Ok(_) => unimplemented!(),
+        Err(err) => err
+    }
 }
