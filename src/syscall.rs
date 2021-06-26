@@ -472,3 +472,21 @@ pub fn getpriority(which_and_who: PriorityWhichAndWho) -> Result<Priority, Sysca
         PRIO_USER(uid) => getpriority_impl(libc::PRIO_USER as i32, uid as c_long),
     }
 }
+
+pub fn setpriority(which_and_who: PriorityWhichAndWho, prio: Priority)
+    -> Result<(), SyscallError>
+{
+    let setpriority_impl = |which, who| -> Result<(), SyscallError> {
+        let knice = 20 - prio.get_prio();
+        toResult(unsafe { binding::psys_setpriority(which, who, knice) as i64 })?;
+        Ok(())
+    };
+
+    use PriorityWhichAndWho::*;
+
+    match which_and_who {
+        PRIO_PROCESS(pid) => setpriority_impl(libc::PRIO_PROCESS as i32, pid as c_long),
+        PRIO_PGRP(pgid) => setpriority_impl(libc::PRIO_PGRP as i32, pgid as c_long),
+        PRIO_USER(uid) => setpriority_impl(libc::PRIO_USER as i32, uid as c_long),
+    }
+}
