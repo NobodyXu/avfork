@@ -348,3 +348,86 @@ pub fn sched_setscheduler(pid: pid_t, policy: &SchedPolicy) -> Result<(), Syscal
         SchedPolicy::SCHED_RR(param) => setter(libc::SCHED_RR, param as *const _),
     }
 }
+
+// Here it relies on the compiler to check that i32 == c_int
+#[repr(i32)]
+#[derive(Copy, Clone, Debug)]
+pub enum PrlimitResource {
+    /// The maximum size of process's virtual memory (address space)
+    /// Specified in bytes, but **rounded down to the system page size**
+    /// Affects brk, mmap and mremap.
+    RLIMIT_AS   = libc::RLIMIT_AS as i32,
+    /// The maximum size of a core file in bytes, 0 to disable process dumpping
+    RLIMIT_CORE = libc::RLIMIT_CORE as i32,
+    /// Limit in seconds on the CPU time for the process.
+    /// Kernel will keep sending `SIGXCPU` (can be caught) once soft limit is reached
+    /// and sent SIGKILL when hard limit is reached.
+    RLIMIT_CPU = libc::RLIMIT_CPU as i32,
+    /// Similar to RLIMIT_AS
+    RLIMIT_DATA = libc::RLIMIT_DATA as i32,
+    /// The maximum size in bytes of files that the process may create.
+    /// Attempts to extend a file beyond this limit results in delivery of SIGXFSZ
+    /// or EFBIG if the former signal is catched.
+    RLIMIT_FSIZE = libc::RLIMIT_FSIZE as i32,
+    /// Limit on the combined number of `flock` locks and `fcntl` leases.
+    RLIMIT_LOCKS = libc::RLIMIT_LOCKS as i32,
+    /// Maxmimum number of memory in bytes that may be locked in RAM.
+    /// Affects `mlock`, `mlockall` and `mmap` with `flags = MAP_LOCKED`.
+    RLIMIT_MEMLOCK = libc::RLIMIT_MEMLOCK as i32,
+    /// Limit on number of bytes that can be allocated for POSIX message queues for the
+    /// ruid of the calling process. Enforced on `mq_open`.
+    RLIMIT_MSGQUEUE = libc::RLIMIT_MSGQUEUE as i32,
+    /// Ceiling to hich the process's nice value can be raised.
+    RLIMIT_NICE = libc::RLIMIT_NICE as i32,
+    /// Limit nunmber of fds can opened by process.
+    RLIMIT_NOFILE = libc::RLIMIT_NOFILE as i32,
+    /// Limit on number of extant process for the ruid of the calling process.
+    RLIMIT_NPROC = libc::RLIMIT_NPROC as i32,
+    /// Limit on the process's resident set in bytes, only for linux 2.4.x, x < 30.
+    RLIMIT_RSS = libc::RLIMIT_RSS as i32,
+    /// Ceiling on the rt priority set in `sched_setscheduler` and `sched_setparam`.
+    RLIMIT_RTPRIO = libc::RLIMIT_RTPRIO as i32,
+    /// Limit on the amount of CPU time (in microseconds) that a process scheduled
+    /// under a rt scheduling policy may consume without making a blocking system call.
+    RLIMIT_RTTIME = libc::RLIMIT_RTTIME as i32,
+    /// Limit on the number of signals that may be queued for the ruid of 
+    /// the calling process.
+    /// Only affects signal sent via `sigqueue`.
+    RLIMIT_SIGPENDING = libc::RLIMIT_SIGPENDING as i32,
+    /// The maximum size of the process stack in bytes.
+    /// Upon limit, SIGSEGV is sent.
+    RLIMIT_STACK = libc::RLIMIT_STACK as i32,
+}
+
+///  * `new_limit` - If `Some(limit) = new_limit`, then the `limit` will be set to the
+///    new limit for the `resource`.
+/// Return old_limit
+pub fn prlimit(resource: PrlimitResource, new_limit: Option<&binding::rlimit64>)
+    -> Result<binding::rlimit64, SyscallError>
+{
+    let prlimit_impl = |new_limit_ptr| -> Result<binding::rlimit64, SyscallError> {
+        let mut old_limit = std::mem::MaybeUninit::<binding::rlimit64>::uninit();
+
+        toResult(unsafe {
+            binding::psys_prlimit(
+                resource as c_int,
+                new_limit_ptr,
+                old_limit.as_mut_ptr()
+            )
+        } as i64)?;
+
+        Ok(unsafe { old_limit.assume_init() })
+    };
+
+    match new_limit {
+        Some(new_limit) => {
+            // In order to work around a strange behavior of the bindgen, that is 
+            // translates psys_prlimit(int, const struct rlimit64*, struct rlimit64*)
+            // to psys_prlimit(c_int, *mut rlimit64, *mut rlimit64)
+            let mut new_limit = *new_limit;
+
+            prlimit_impl(&mut new_limit as *mut _)
+        },
+        None => prlimit_impl(std::ptr::null_mut())
+    }
+}
