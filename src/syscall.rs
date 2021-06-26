@@ -212,9 +212,7 @@ impl Fd {
     }
 }
 
-// Use static here to ensure AT_FDCWD never get dropped
-pub static AT_FDCWD: Fd = Fd { fd: binding::AT_FDCWD };
-
+pub const AT_FDCWD: Fd = Fd { fd: binding::AT_FDCWD };
 
 /// Check manpage for chdir for more documentation.
 pub fn chdir(pathname: &CStr) -> Result<(), SyscallError>
