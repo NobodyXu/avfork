@@ -213,6 +213,8 @@ impl Fd {
 }
 
 pub const AT_FDCWD: Fd = Fd { fd: binding::AT_FDCWD };
+pub const STDOUT: Fd = Fd { fd: 1 };
+pub const STDERR: Fd = Fd { fd: 2 };
 
 /// Check manpage for chdir for more documentation.
 pub fn chdir(pathname: &CStr) -> Result<(), SyscallError>
