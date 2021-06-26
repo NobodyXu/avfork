@@ -308,6 +308,11 @@ impl std::fmt::Debug for SchedPolicy {
 
 /// **WARNING**: This method does not retrieves sched_param, so in the return value
 /// they will be set to 0.
+///
+/// # Error
+///
+/// If unexpected scheulder policy is returned from kernel, then this function
+/// will terminate the process with a friendly error message.
 pub fn sched_getscheduler(pid: pid_t) -> Result<SchedPolicy, SyscallError> {
     let result = unsafe {
         toResult(binding::psys_sched_getscheduler(pid) as i64 )? as i32
@@ -315,6 +320,7 @@ pub fn sched_getscheduler(pid: pid_t) -> Result<SchedPolicy, SyscallError> {
 
     let param = libc::sched_param { sched_priority: 0 };
 
+    const msg: &[u8] = "Unexpected scheduler policy in sched_getscheduler".as_bytes();
     Ok(match result {
         libc::SCHED_OTHER => SchedPolicy::SCHED_OTHER,
         libc::SCHED_BATCH => SchedPolicy::SCHED_BATCH,
@@ -323,7 +329,10 @@ pub fn sched_getscheduler(pid: pid_t) -> Result<SchedPolicy, SyscallError> {
         libc::SCHED_FIFO => SchedPolicy::SCHED_FIFO(param),
         libc::SCHED_RR => SchedPolicy::SCHED_RR(param),
 
-        _ => unimplemented!()
+        _ => {
+            let _ = STDERR.write(msg);
+            exit(1)
+        }
     })
 }
 
