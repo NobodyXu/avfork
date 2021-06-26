@@ -7,7 +7,7 @@ mod binding {
 }
 
 use std::ops::Deref;
-use std::os::raw::{c_void, c_int};
+use std::os::raw::{c_void, c_int, c_long};
 use std::ffi::CStr;
 
 pub use binding::{sigset_t, pid_t, uid_t, gid_t};
@@ -433,7 +433,7 @@ pub fn prlimit(resource: PrlimitResource, new_limit: Option<&binding::rlimit64>)
 }
 
 #[derive(Copy, Clone, Debug)]
-pub enum PriorityWhich {
+pub enum PriorityWhichAndWho {
     PRIO_PROCESS(pid_t),
     PRIO_PGRP(pid_t),
     PRIO_USER(uid_t)
@@ -458,4 +458,17 @@ impl Priority {
     }
 }
 
+pub fn getpriority(which_and_who: PriorityWhichAndWho) -> Result<Priority, SyscallError> {
+    let getpriority_impl = |which, who| -> Result<Priority, SyscallError> {
+        let knice = toResult(unsafe { binding::psys_getpriority(which, who) as i64 })?;
+        Ok(Priority { prio: (20 - knice) as c_int })
+    };
 
+    use PriorityWhichAndWho::*;
+
+    match which_and_who {
+        PRIO_PROCESS(pid) => getpriority_impl(libc::PRIO_PROCESS as i32, pid as c_long),
+        PRIO_PGRP(pgid) => getpriority_impl(libc::PRIO_PGRP as i32, pgid as c_long),
+        PRIO_USER(uid) => getpriority_impl(libc::PRIO_USER as i32, uid as c_long),
+    }
+}
