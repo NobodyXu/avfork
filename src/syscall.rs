@@ -545,3 +545,10 @@ pub fn sigprocmask(how: SigprocmaskHow, new_set: Option<&sigset_t>)
 
     Ok(unsafe { old_set.assume_init() })
 }
+
+pub fn exit(status: c_int) -> ! {
+    unsafe {
+        binding::psys_exit(status);
+    }
+    unimplemented!()
+}
