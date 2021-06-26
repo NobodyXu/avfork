@@ -431,3 +431,31 @@ pub fn prlimit(resource: PrlimitResource, new_limit: Option<&binding::rlimit64>)
         None => prlimit_impl(std::ptr::null_mut())
     }
 }
+
+#[derive(Copy, Clone, Debug)]
+pub enum PriorityWhich {
+    PRIO_PROCESS(pid_t),
+    PRIO_PGRP(pid_t),
+    PRIO_USER(uid_t)
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Priority {
+    prio: c_int
+}
+impl Priority {
+    /// * `prio` - should be in range -20..19
+    pub fn new(prio: c_int) -> Option<Priority> {
+        if (-20..19).contains(&prio) {
+            Some(Priority { prio })
+        } else {
+            None
+        }
+    }
+
+    pub fn get_prio(&self) -> c_int {
+        self.prio
+    }
+}
+
+
