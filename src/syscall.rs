@@ -344,7 +344,6 @@ pub fn sched_getscheduler(pid: pid_t) -> Result<SchedPolicy, SyscallError> {
 
     let param = libc::sched_param { sched_priority: 0 };
 
-    const msg: &[u8] = "Unexpected scheduler policy in sched_getscheduler".as_bytes();
     Ok(match result {
         libc::SCHED_OTHER => SchedPolicy::SCHED_OTHER,
         libc::SCHED_BATCH => SchedPolicy::SCHED_BATCH,
@@ -354,8 +353,7 @@ pub fn sched_getscheduler(pid: pid_t) -> Result<SchedPolicy, SyscallError> {
         libc::SCHED_RR => SchedPolicy::SCHED_RR(param),
 
         _ => {
-            let _ = STDERR.write(msg);
-            exit(1)
+            crate::errx!(1, "Unexpected scheduler policy in sched_getscheduler")
         }
     })
 }
