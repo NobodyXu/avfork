@@ -226,6 +226,15 @@ impl Write for Fd {
         Ok(())
     }
 }
+/// impl Read for Fd so that any method that requires trait Write can be called upon it.
+impl Read for Fd {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        match Fd::read(self, buf) {
+            Ok(cnt) => Ok(cnt),
+            Err(err) => Err(std::io::Error::from_raw_os_error(err.get_errno() as i32))
+        }
+    }
+}
 
 pub const AT_FDCWD: Fd = Fd { fd: binding::AT_FDCWD };
 pub const STDOUT: Fd = Fd { fd: 1 };
