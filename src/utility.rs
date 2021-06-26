@@ -25,4 +25,40 @@ pub fn errx_impl(exit_status: c_int, args: std::fmt::Arguments) -> ! {
     exit(exit_status)
 }
 
+#[macro_export]
+macro_rules! errx {
+    ( $status:expr $( , $x:expr )* ) => {
+        $crate::utility::errx_impl($status, 
+            std::format_args!(
+                $(
+                    $x
+                )*
+            )
+        )
+    };
+}
+
 // Implement eprintln, errx
+
+#[cfg(test)]
+mod tests {
+    #[macro_use]
+    use crate::utility::*;
+
+    #[test]
+    fn test_errx() {
+        let pid = unsafe { libc::fork() };
+
+        if pid == 0 {
+            errx!(0, "Hello, world from test_errx!");
+        } else {
+            let mut status = -1 as c_int;
+    
+            unsafe {
+                assert_eq!(pid, libc::waitpid(pid, &mut status as *mut _, 0));
+            };
+
+            assert_eq!(status, 0);
+        }
+    }
+}
