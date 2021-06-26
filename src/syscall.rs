@@ -9,6 +9,7 @@ mod binding {
 use std::ops::Deref;
 use std::os::raw::{c_void, c_int, c_long, c_char};
 use std::ffi::CStr;
+use std::io::{Write, Read};
 
 pub use binding::{sigset_t, pid_t, uid_t, gid_t};
 
@@ -208,6 +209,20 @@ impl Fd {
 
         toResult(unsafe { binding::psys_fchdir(fd) } as i64)?;
 
+        Ok(())
+    }
+}
+/// impl Write for Fd so that write!, writeln! and other methods that
+/// requires trait Write can be called upon it.
+impl Write for Fd {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        match Fd::write(self, buf) {
+            Ok(cnt) => Ok(cnt),
+            Err(err) => Err(std::io::Error::from_raw_os_error(err.get_errno() as i32))
+        }
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
         Ok(())
     }
 }
@@ -624,5 +639,15 @@ pub fn execveat(
     match toResult(ret as i64) {
         Ok(_) => unimplemented!(),
         Err(err) => err
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::syscall::*;
+
+    #[test]
+    fn test_impl_Write_for_Fd() {
+        writeln!(STDERR, "Hello, world from test_impl_Write_for_Fd!");
     }
 }
