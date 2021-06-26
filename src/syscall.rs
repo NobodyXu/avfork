@@ -584,3 +584,36 @@ pub fn execve(pathname: &CStr, argv: CStrArray, envp: CStrArray) -> SyscallError
         Err(err) => err
     }
 }
+
+bitflags! {
+    pub struct ExecveAtFlags: c_int {
+        const AT_EMPTY_PATH       = libc::AT_EMPTY_PATH;
+        const AT_SYMLINK_NOFOLLOW = libc::AT_SYMLINK_NOFOLLOW;
+    }
+}
+
+/// This syscall is native to linux, but is emulated on any other target
+/// Checks `man 2 execveat` for more info.
+pub fn execveat(
+    dirfd: Fd,
+    pathname: &CStr,
+    argv: CStrArray,
+    envp: CStrArray,
+    flags: ExecveAtFlags
+) -> SyscallError
+{
+    let ret = unsafe {
+        binding::psys_execveat(
+            dirfd.fd,
+            pathname.as_ptr(),
+            argv.as_ptr(),
+            envp.as_ptr(),
+            flags.bits()
+        )
+    };
+
+    match toResult(ret as i64) {
+        Ok(_) => unimplemented!(),
+        Err(err) => err
+    }
+}
