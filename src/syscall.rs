@@ -13,6 +13,7 @@ use std::ffi::CStr;
 pub use binding::{sigset_t, pid_t, uid_t, gid_t};
 
 use crate::error::{toResult, SyscallError};
+use crate::utility::*;
 
 // Here it relies on the compiler to check that i32 == c_int
 #[repr(i32)]
@@ -507,4 +508,40 @@ pub fn sigfillset() -> sigset_t {
         binding::pure_sigfillset(sigset.as_mut_ptr() as *mut c_void);
         sigset.assume_init()
     }
+}
+
+// Here it relies on the compiler to check that i32 == c_int
+#[repr(i32)]
+#[derive(Copy, Clone, Debug)]
+pub enum SigprocmaskHow {
+    SIG_BLOCK = libc::SIG_BLOCK,
+    SIG_UNBLOCK = libc::SIG_UNBLOCK,
+    SIG_SETMASK = libc::SIG_SETMASK,
+}
+
+/// * `new_set` - If `Some(set) new_set`, then the sigmask is set to `set`.
+/// Returns the old sigset.
+///
+/// # Errors
+///
+/// Only when:
+///  - new_set contains an invalid pointer
+///  - stack overflow caused by too much stack allocation
+///  - Internal implementation error of binding::psys_sigprocmask
+pub fn sigprocmask(how: SigprocmaskHow, new_set: Option<&sigset_t>)
+    -> Result<sigset_t, SyscallError>
+{
+    let how = how as c_int;
+    let new_set: *const c_void = match new_set {
+        Some(set) => to_void_ptr(set),
+        None => std::ptr::null()
+    };
+    let mut old_set = std::mem::MaybeUninit::<sigset_t>::uninit();
+
+    let ret = unsafe {
+        binding::psys_sigprocmask(how, new_set, old_set.as_mut_ptr() as *mut c_void)
+    };
+    toResult(ret as i64)?;
+
+    Ok(unsafe { old_set.assume_init() })
 }
