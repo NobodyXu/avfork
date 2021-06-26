@@ -95,7 +95,7 @@ pub struct FdBox {
     fd: Fd,
 }
 impl FdBox {
-    pub fn from_raw(fd: c_int) -> FdBox {
+    pub const fn from_raw(fd: c_int) -> FdBox {
         FdBox { fd: Fd{fd} }
     }
 
@@ -179,7 +179,7 @@ pub struct Fd {
     fd: c_int,
 }
 impl Fd {
-    pub fn from_raw(fd: c_int) -> Fd {
+    pub const fn from_raw(fd: c_int) -> Fd {
         Fd { fd }
     }
 
@@ -445,16 +445,16 @@ pub struct Priority {
     prio: c_int
 }
 impl Priority {
-    /// * `prio` - should be in range -20..19
-    pub fn new(prio: c_int) -> Option<Priority> {
-        if (-20..19).contains(&prio) {
+    /// * `prio` - should be in range -20..20
+    pub const fn new(prio: c_int) -> Option<Priority> {
+        if prio >= -20 && prio <= 19 {
             Some(Priority { prio })
         } else {
             None
         }
     }
 
-    pub fn get_prio(&self) -> c_int {
+    pub const fn get_prio(&self) -> c_int {
         self.prio
     }
 }
@@ -568,7 +568,7 @@ impl<'a> CStrArray<'a> {
         None
     }
     
-    pub fn as_ptr(&self) -> *const *const c_char {
+    pub const fn as_ptr(&self) -> *const *const c_char {
         self.arr.as_ptr()
     }
 }
