@@ -490,3 +490,21 @@ pub fn setpriority(which_and_who: PriorityWhichAndWho, prio: Priority)
         PRIO_USER(uid) => setpriority_impl(libc::PRIO_USER as i32, uid as c_long),
     }
 }
+
+pub fn sigemptyset() -> sigset_t {
+    let mut sigset = std::mem::MaybeUninit::<sigset_t>::uninit();
+    
+    unsafe {
+        binding::pure_sigemptyset(sigset.as_mut_ptr() as *mut c_void);
+        sigset.assume_init()
+    }
+}
+
+pub fn sigfillset() -> sigset_t {
+    let mut sigset = std::mem::MaybeUninit::<sigset_t>::uninit();
+    
+    unsafe {
+        binding::pure_sigfillset(sigset.as_mut_ptr() as *mut c_void);
+        sigset.assume_init()
+    }
+}
