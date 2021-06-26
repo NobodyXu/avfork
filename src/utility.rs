@@ -50,7 +50,6 @@ pub fn unwrap<T, E: std::fmt::Debug>(result: Result<T, E>) -> T {
 
 #[cfg(test)]
 mod tests {
-    #[macro_use]
     use crate::utility::*;
     use crate::syscall;
 
@@ -74,7 +73,7 @@ mod tests {
 
     #[test]
     fn test_errx() {
-        assert_eq!(run(|| errx!(0, "Hello, world from test_errx!")), 0);
+        assert_eq!(run(|| crate::errx!(0, "Hello, world from test_errx!")), 0);
     }
 
     const err: Result<(), &'static str> = Err("Error");
