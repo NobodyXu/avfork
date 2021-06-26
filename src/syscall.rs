@@ -657,6 +657,6 @@ mod tests {
 
     #[test]
     fn test_impl_Write_for_Fd() {
-        writeln!(STDERR, "Hello, world from test_impl_Write_for_Fd!");
+        writeln!(STDERR.clone(), "Hello, world from test_impl_Write_for_Fd!");
     }
 }
