@@ -38,19 +38,29 @@ macro_rules! errx {
     };
 }
 
-// Implement eprintln, errx
+pub fn expect<T, E: std::fmt::Debug>(result: Result<T, E>, msg: &str) -> T {
+    match result {
+        Ok(val) => val,
+        Err(err) => errx_impl(1, std::format_args!("{}: {:#?}", msg, err))
+    }
+}
+pub fn unwrap<T, E: std::fmt::Debug>(result: Result<T, E>) -> T {
+    expect(result, "unwrap failed")
+}
 
 #[cfg(test)]
 mod tests {
     #[macro_use]
     use crate::utility::*;
+    use crate::syscall;
 
-    #[test]
-    fn test_errx() {
+    fn run<F: FnOnce()>(f: F) -> c_int {
         let pid = unsafe { libc::fork() };
 
         if pid == 0 {
-            errx!(0, "Hello, world from test_errx!");
+            f();
+
+            syscall::exit(0);
         } else {
             let mut status = -1 as c_int;
     
@@ -58,7 +68,24 @@ mod tests {
                 assert_eq!(pid, libc::waitpid(pid, &mut status as *mut _, 0));
             };
 
-            assert_eq!(status, 0);
+            libc::WEXITSTATUS(status)
         }
+    }
+
+    #[test]
+    fn test_errx() {
+        assert_eq!(run(|| errx!(0, "Hello, world from test_errx!")), 0);
+    }
+
+    const err: Result<(), &'static str> = Err("Error");
+
+    #[test]
+    fn test_expect() {
+        assert_eq!(run(|| expect(err, "Expected failure")), 1);
+    }
+
+    #[test]
+    fn test_unwrap() {
+        assert_eq!(run(|| unwrap(err)), 1);
     }
 }
