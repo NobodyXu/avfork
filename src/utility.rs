@@ -1,5 +1,5 @@
 use std::os::raw::{c_void, c_int, c_char};
-use std::ffi::CStr;
+use std::ffi::{CStr, FromBytesWithNulError};
 
 use std::io::Write;
 use crate::syscall::{STDERR, exit};
@@ -10,6 +10,10 @@ pub fn to_void_ptr<T>(reference: &T) -> *const c_void {
 
 pub fn to_void_ptr_mut<T>(reference: &mut T) -> *mut c_void {
     reference as *mut _ as *mut c_void
+}
+
+pub fn to_cstr(s: &str) -> Result<&CStr, FromBytesWithNulError> {
+    CStr::from_bytes_with_nul(s.as_bytes())
 }
 
 fn to_cstr_ptr(s: &&CStr) -> *const c_char {
@@ -49,11 +53,11 @@ pub fn unwrap<T, E: std::fmt::Debug>(result: Result<T, E>) -> T {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use crate::utility::*;
     use crate::syscall;
 
-    fn run<F: FnOnce()>(f: F) -> c_int {
+    pub fn run<F: FnOnce()>(f: F) -> c_int {
         let pid = unsafe { libc::fork() };
 
         if pid == 0 {
