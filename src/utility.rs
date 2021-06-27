@@ -16,12 +16,11 @@ pub fn to_cstr(s: &str) -> Result<&CStr, FromBytesWithNulError> {
     CStr::from_bytes_with_nul(s.as_bytes())
 }
 
-fn to_cstr_ptr(s: &&CStr) -> *const c_char {
+/// Usage:
+/// 
+///     [to_cstr("Hello").unwrap()].iter().map(to_cstr_ptr).collect()
+pub fn to_cstr_ptr(s: &&CStr) -> *const c_char {
     s.as_ptr()
-}
-
-pub fn to_cstr_ptrs<'a>(in_arr: &'a [&CStr]) -> impl std::iter::Iterator + 'a {
-    in_arr.iter().map(to_cstr_ptr)
 }
 
 pub fn errx_impl(exit_status: c_int, args: std::fmt::Arguments) -> ! {
