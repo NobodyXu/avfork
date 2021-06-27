@@ -604,7 +604,7 @@ impl<'a> CStrArray<'a> {
     }
 }
 
-pub fn execve(pathname: &CStr, argv: CStrArray, envp: CStrArray) -> SyscallError
+pub fn execve(pathname: &CStr, argv: &CStrArray, envp: &CStrArray) -> SyscallError
 {
     let ret = unsafe {
         binding::psys_execve(pathname.as_ptr(), argv.as_ptr(), envp.as_ptr())
@@ -628,8 +628,8 @@ bitflags! {
 pub fn execveat(
     dirfd: Fd,
     pathname: &CStr,
-    argv: CStrArray,
-    envp: CStrArray,
+    argv: &CStrArray,
+    envp: &CStrArray,
     flags: ExecveAtFlags
 ) -> SyscallError
 {
