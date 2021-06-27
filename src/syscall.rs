@@ -649,12 +649,173 @@ pub fn execveat(
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct ExecvelCandidate<'a> {
+    filename: &'a CStr,
+    paths: &'a [&'a CStr]
+}
+impl<'a> ExecvelCandidate<'a> {
+    /// * `filename` - must not contains any slash, must be less than `PATH_MAX`
+    /// * `PATH` - must not be NULL or empty, must be in form of "PATH1:PATH2:..." and 
+    ///   each `PATH*` must be less than `PATH_MAX` and not empty.
+    pub fn new(filename: &'a CStr, paths: &'a [&'a CStr])
+        -> Option<ExecvelCandidate<'a>>
+    {
+        let filename_sz = filename.to_bytes().len();
+
+        for path in paths.iter() {
+            let path = path.to_bytes();
+
+            let size = filename_sz + path.len() + 1 /* The additional '//' (escaped) */;
+            if path.is_empty() || size > PATH_MAX {
+                return None;
+            }
+        }
+
+        Some(ExecvelCandidate { filename, paths })
+    }
+}
+
+/// linux/limits.h say PATH_MAX is 4096, but it seems that the filesystem on linux
+/// does not actually hardcoded this limit
+/// 
+/// So let's make PSYS_PATH_MAX 5 * 4096 just in case.
+pub const PATH_MAX: usize = 5 * 4096;
+
+/// These functions duplicate the actions of the shell in searching for 
+/// an executable file
+/// 
+/// Certain errors are treated specially:
+/// 
+/// If permission is denied for a file (the attempted execve(2) failed with 
+/// the error `EACCES`), these functions will continue searching the rest of 
+/// the search path
+/// 
+/// If no other file is found, however, they will return with errno set to EACCES
+pub fn execvel(
+    candidate: &ExecvelCandidate,
+    argv: &CStrArray,
+    envp: &CStrArray
+) -> SyscallError
+{
+    let argv = argv.as_ptr();
+    let envp = envp.as_ptr();
+
+    // Since PATH_MAX is 5 page long, it will be too costy to write it all 
+    // to zero and zeroing will also trigger interruption, causing the kernel to 
+    // allocate pages for it while it might not be used at all.
+    let mut constructed_path = std::mem::MaybeUninit::<[u8; PATH_MAX]>::uninit();
+    let constructed_path_ptr = constructed_path.as_mut_ptr() as *mut u8;
+
+    let pmemcpy = |offset, src, size| {
+        unsafe {
+            binding::pmemcpy(
+                constructed_path_ptr.add(offset) as *mut c_void,
+                src as *const c_void,
+                size as u64
+            );
+        };
+    };
+
+    let filename = candidate.filename.to_bytes();
+    let filename_sz = filename.len();
+    let filename = filename.as_ptr();
+
+    let mut got_eaccess = false;
+
+    for path in candidate.paths.iter() {
+        let path = path.to_bytes();
+        let path_sz = path.len();
+        let path = path.as_ptr();
+
+        pmemcpy(0, path, path_sz);
+        unsafe {
+            constructed_path_ptr.add(path_sz).write(b'/');
+        };
+        pmemcpy(path_sz + 1, filename, filename_sz);
+
+        let ret = unsafe {
+            binding::psys_execve(constructed_path.as_ptr() as *const c_char, argv, envp)
+        };
+        let err = match toResult(ret as i64) {
+            Ok(_) => unimplemented!(),
+            Err(err) => err
+        };
+
+        match err.get_errno() as i32 {
+            libc::EACCES => {
+                // Record that we got a 'Permission denied' error.  If we end
+                // up finding no executable we can use, we want to diagnose
+                // that we did find one but were denied access.
+                got_eaccess = true;
+                continue;
+            },
+            // Those errors indicate the file is missing or not executable
+            // by us, in which case we want to just try the next path
+            // directory.
+            libc::ENOENT  => continue,
+            libc::ESTALE  => continue,
+            libc::ENOTDIR => continue,
+            // Some strange filesystems like AFS return even
+            // stranger error numbers.  They cannot reasonably mean
+            // anything else so ignore those, too.
+            libc::ENODEV    => continue,
+            libc::ETIMEDOUT => continue,
+    
+            _ => return err,
+        };
+    }
+
+    if got_eaccess {
+        SyscallError::new(libc::EACCES as u32)
+    } else {
+        SyscallError::new(libc::ENOENT as u32)
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
+    use crate::errx;
     use crate::syscall::*;
+    use crate::utility::{to_cstr, to_cstr_ptr};
+    use crate::utility::tests::run;
+    use std::os::raw::c_char;
 
     #[test]
     fn test_impl_Write_for_Fd() {
         writeln!(STDERR.clone(), "Hello, world from test_impl_Write_for_Fd!");
+    }
+
+    #[test]
+    fn test_execvel() {
+        let paths = [to_cstr("/bin\0").unwrap()];
+        let mut argvVec: Vec<*const c_char> = [to_cstr("Hello\0").unwrap()]
+            .iter()
+            .map(to_cstr_ptr)
+            .collect();
+        argvVec.push(std::ptr::null());
+
+        let argv = CStrArray::new(&argvVec).unwrap();
+
+        let mut envpVec: Vec<*const c_char> = [to_cstr("A=B\0").unwrap()]
+            .iter()
+            .map(to_cstr_ptr)
+            .collect();
+        envpVec.push(std::ptr::null());
+
+        let envp = CStrArray::new(&envpVec).unwrap();
+
+        let candidate = ExecvelCandidate::new(to_cstr("echo\0").unwrap(), &paths)
+            .unwrap();
+        assert_eq!(run(|| {
+            errx!(1, "{}", execvel(&candidate, &argv, &envp));
+        }), 0);
+
+        let candidate = ExecvelCandidate::new(to_cstr("env\0").unwrap(), &paths)
+            .unwrap();
+        assert_eq!(run(|| {
+            errx!(1, "{}", execvel(&candidate, &argv, &envp));
+        }), 0);
     }
 }
