@@ -34,7 +34,7 @@ macro_rules! errx {
         $crate::utility::errx_impl($status, 
             std::format_args!(
                 $(
-                    $x
+                    $x,
                 )*
             )
         )
@@ -77,17 +77,18 @@ pub mod tests {
     #[test]
     fn test_errx() {
         assert_eq!(run(|| crate::errx!(0, "Hello, world from test_errx!")), 0);
+        assert_eq!(run(|| crate::errx!(0, "{}", "Hello, world from test_errx!")), 0);
     }
 
-    const err: Result<(), &'static str> = Err("Error");
+    const ERR: Result<(), &'static str> = Err("Error");
 
     #[test]
     fn test_expect() {
-        assert_eq!(run(|| expect(err, "Expected failure")), 1);
+        assert_eq!(run(|| expect(ERR, "Expected failure")), 1);
     }
 
     #[test]
     fn test_unwrap() {
-        assert_eq!(run(|| unwrap(err)), 1);
+        assert_eq!(run(|| unwrap(ERR)), 1);
     }
 }
