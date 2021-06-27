@@ -11,7 +11,7 @@ use once_cell::sync::OnceCell;
 include!(concat!(env!("OUT_DIR"), "/errno_msgs_binding.rs"));
 
 /// * `result` - return value of syscall
-pub fn toResult(result: i64) -> Result<u64, SyscallError> {
+pub const fn toResult(result: i64) -> Result<u64, SyscallError> {
     if result >= 0 {
         Ok(result as u64)
     } else {
@@ -45,7 +45,11 @@ pub struct SyscallError {
     errno: u32,
 }
 impl SyscallError {
-    pub fn get_errno(&self) -> u32 {
+    pub const fn new(errno: u32) -> SyscallError {
+        SyscallError { errno }
+    }
+
+    pub const fn get_errno(&self) -> u32 {
         self.errno
     }
     pub fn get_msg(&self) -> &'static str {
