@@ -811,11 +811,5 @@ mod tests {
         assert_eq!(run(|| {
             errx!(1, "{}", execvel(&candidate, &argv, &envp));
         }), 0);
-
-        let candidate = ExecvelCandidate::new(to_cstr("env\0").unwrap(), &paths)
-            .unwrap();
-        assert_eq!(run(|| {
-            errx!(1, "{}", execvel(&candidate, &argv, &envp));
-        }), 0);
     }
 }
