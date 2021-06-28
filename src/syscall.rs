@@ -181,10 +181,6 @@ impl Fd {
         Fd { fd: FdBasics::from_raw(fd) }
     }
 
-    pub const fn get_fd(&self) -> c_int {
-        self.fd.get_fd()
-    }
-
     pub fn read(&self, buffer: &mut [u8]) -> Result<usize, SyscallError> {
         let buf_ptr = buffer.as_mut_ptr() as *mut c_void;
         let buf_len = buffer.len() as u64;
@@ -288,10 +284,6 @@ pub struct FdPath {
 impl FdPath {
     pub const fn from_raw(fd: c_int) -> FdPath {
         FdPath { fd: FdBasics::from_raw(fd) }
-    }
-
-    pub const fn get_fd(&self) -> c_int {
-        self.fd.get_fd()
     }
 
     /// Pre condition: self is opened in dir mode
