@@ -655,7 +655,7 @@ pub struct ExecvelCandidate<'a> {
     paths: &'a [&'a CStr]
 }
 impl<'a> ExecvelCandidate<'a> {
-    /// * `filename` - must not contains any slash, must be less than `PATH_MAX`
+    /// * `filename` - must not contains any slash or empty, must be less than `PATH_MAX`
     /// * `paths` - must not be empty and neither should each element in it be empty,
     ///   and len of each element plus len of filename plus 1 must be less than 
     ///   `PATH_MAX`.
@@ -663,6 +663,10 @@ impl<'a> ExecvelCandidate<'a> {
         -> Option<ExecvelCandidate<'a>>
     {
         let filename_sz = filename.to_bytes().len();
+        if filename_sz == 0 {
+            return None;
+        }
+
         for byte in filename.to_bytes() {
             if *byte == b'/' {
                 return None;
