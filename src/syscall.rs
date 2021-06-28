@@ -36,9 +36,6 @@ bitflags! {
         const O_SYNC = libc::O_SYNC;
         const O_DIRECT = libc::O_DIRECT;
 
-        const O_DIRECTORY = libc::O_DIRECTORY;
-        const O_PATH = libc::O_PATH;
-
         const O_LARGEFILE = libc::O_LARGEFILE;
         const O_NOATIME = libc::O_NOATIME;
         const O_NOCTTY = libc::O_NOCTTY;
@@ -234,6 +231,13 @@ impl Read for Fd {
             Ok(cnt) => Ok(cnt),
             Err(err) => Err(std::io::Error::from_raw_os_error(err.get_errno() as i32))
         }
+    }
+}
+impl Deref for Fd {
+    type Target = FdBasics;
+
+    fn deref(&self) ->&Self::Target {
+        &self.fd
     }
 }
 
