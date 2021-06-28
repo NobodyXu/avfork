@@ -44,12 +44,6 @@ bitflags! {
     }
 }
 bitflags! {
-    pub struct FdCreatFlags: c_int {
-        const O_CREAT = libc::O_CREAT;
-        const O_TMPFILE = libc::O_TMPFILE;
-    }
-}
-bitflags! {
     pub struct Mode: binding::mode_t {
         /// user (file owner) has read, write, and execute permission
         const S_IRWXU = 0x00700;
@@ -130,19 +124,32 @@ impl FdBox {
     /// Open existing file.
     ///
     ///  * `dirfd` - can be `AT_FDCWD`
-    ///  * `exclusive` - if yes, then O_EXCL flags is specified when attempting to
+    ///  * `readable` - whether the returned fd will be readable
+    ///  * `tmpfile_or_regular_file` - if true, then `O_TMPFILE` will be passed as flags;
+    ///    Otherwise, `O_CREAT` will be passed.
+    ///  * `exclusive` - if yes, then `O_EXCL` flags is passed when attempting to
     ///    create the file.
     ///
     /// Check manpage for openat for more documentation.
     pub fn creatat(
-        dirfd: FdPath, pathname: &CStr, accMode: AccessMode, flags: FdFlags,
-        cflags: FdCreatFlags, exclusive: bool, mode: Mode
+        dirfd: FdPath, pathname: &CStr, readable: bool, flags: FdFlags,
+        tmpfile_or_regular_file: bool, exclusive: bool, mode: Mode
     )
         -> Result<FdBox, SyscallError>
     {
-        let mut flags = (accMode as i32) | flags.bits | cflags.bits;
+        let mut flags = flags.bits;
         if exclusive {
             flags |= libc::O_EXCL;
+        }
+        if readable {
+            flags |= libc::O_RDWR;
+        } else {
+            flags |= libc::O_WRONLY;
+        }
+        if tmpfile_or_regular_file {
+            flags |= libc::O_TMPFILE;
+        } else {
+            flags |= libc::O_CREAT;
         }
 
         FdBox::openat_impl(dirfd, pathname, flags, mode.bits)
