@@ -97,7 +97,7 @@ pub struct FdBox {
 }
 impl FdBox {
     pub const fn from_raw(fd: c_int) -> FdBox {
-        FdBox { fd: Fd{fd} }
+        FdBox { fd: Fd::from_raw(fd) }
     }
 
     ///  * `dirfd` - can be `AT_FDCWD`
@@ -110,7 +110,7 @@ impl FdBox {
         let pathname = pathname.as_ptr();
 
         let result = unsafe {
-            binding::psys_openat(dirfd.fd, pathname, flags, mode)
+            binding::psys_openat(dirfd.get_fd(), pathname, flags, mode)
         };
         let fd = toResult(result as i64)?;
         Ok(FdBox::from_raw(fd as c_int))
@@ -163,7 +163,7 @@ impl FdBox {
 impl Drop for FdBox {
     fn drop(&mut self) {
         unsafe {
-            binding::psys_close(self.fd.fd);
+            binding::psys_close(self.fd.get_fd());
         }
     }
 }
@@ -177,35 +177,36 @@ impl Deref for FdBox {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Fd {
-    fd: c_int,
+    fd: FdBasics
 }
 impl Fd {
     pub const fn from_raw(fd: c_int) -> Fd {
-        Fd { fd }
+        Fd { fd: FdBasics::from_raw(fd) }
+    }
+
+    pub const fn get_fd(&self) -> c_int {
+        self.fd.get_fd()
     }
 
     pub fn read(&self, buffer: &mut [u8]) -> Result<usize, SyscallError> {
         let buf_ptr = buffer.as_mut_ptr() as *mut c_void;
         let buf_len = buffer.len() as u64;
-        Ok(toResult(unsafe { binding::psys_read(self.fd, buf_ptr, buf_len) })? as usize)
+        Ok(toResult(unsafe {
+            binding::psys_read(self.get_fd(), buf_ptr, buf_len)
+        })? as usize)
     }
 
     pub fn write(&self, buffer: &[u8]) -> Result<usize, SyscallError> {
         let buf_ptr = buffer.as_ptr() as *const c_void;
         let buf_len = buffer.len() as u64;
-        Ok(toResult(unsafe { binding::psys_write(self.fd, buf_ptr, buf_len) })? as usize)
-    }
-
-    /// Check manpage for dup3 for more documentation.
-    pub fn dup3(&self, newfd: c_int, flags: FdFlags) -> Result<FdBox, SyscallError> {
-        let oldfd = self.fd;
-        let fd = toResult(unsafe { binding::psys_dup3(oldfd, newfd, flags.bits) } as i64)?;
-        Ok(FdBox::from_raw(fd as c_int))
+        Ok(toResult(unsafe {
+            binding::psys_write(self.get_fd(), buf_ptr, buf_len)
+        })? as usize)
     }
 
     /// Check manpage for fchdir for more documentation.
     pub fn fchdir(&self) -> Result<(), SyscallError> {
-        let fd = self.fd;
+        let fd = self.get_fd();
 
         toResult(unsafe { binding::psys_fchdir(fd) } as i64)?;
 
@@ -236,9 +237,30 @@ impl Read for Fd {
     }
 }
 
-pub const AT_FDCWD: Fd = Fd { fd: binding::AT_FDCWD };
-pub const STDOUT: Fd = Fd { fd: 1 };
-pub const STDERR: Fd = Fd { fd: 2 };
+#[derive(Copy, Clone, Debug)]
+pub struct FdBasics {
+    fd: c_int,
+}
+impl FdBasics {
+    pub const fn from_raw(fd: c_int) -> FdBasics {
+        FdBasics { fd }
+    }
+
+    pub const fn get_fd(&self) -> c_int {
+        self.fd
+    }
+
+    /// Check manpage for dup3 for more documentation.
+    pub fn dup3(&self, newfd: c_int, flags: FdFlags) -> Result<FdBox, SyscallError> {
+        let oldfd = self.fd;
+        let fd = toResult(unsafe { binding::psys_dup3(oldfd, newfd, flags.bits) } as i64)?;
+        Ok(FdBox::from_raw(fd as c_int))
+    }
+}
+
+pub const AT_FDCWD: FdBasics = FdBasics::from_raw(binding::AT_FDCWD);
+pub const STDOUT: Fd = Fd::from_raw(1);
+pub const STDERR: Fd = Fd::from_raw(2);
 
 /// Check manpage for chdir for more documentation.
 pub fn chdir(pathname: &CStr) -> Result<(), SyscallError>
@@ -630,7 +652,7 @@ pub fn execveat(
 {
     let ret = unsafe {
         binding::psys_execveat(
-            dirfd.fd,
+            dirfd.get_fd(),
             pathname.as_ptr(),
             argv.as_ptr(),
             envp.as_ptr(),
