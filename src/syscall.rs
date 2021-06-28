@@ -662,6 +662,11 @@ impl<'a> ExecvelCandidate<'a> {
         -> Option<ExecvelCandidate<'a>>
     {
         let filename_sz = filename.to_bytes().len();
+        for byte in filename.to_bytes() {
+            if *byte == b'/' {
+                return None;
+            }
+        }
 
         for path in paths.iter() {
             let path = path.to_bytes();
