@@ -253,7 +253,7 @@ impl FromRaw for FdPathBox {
     }
 }
 impl FdPathBox {
-    pub fn openat(dirfd: FdPath, pathname: &CStr, mode: FdPathMode)
+    pub fn openat(dirfd: FdPath, pathname: &CStr, mode: FdPathMode, cloexec: bool)
         -> Result<FdPathBox, SyscallError>
     {
         let pathname = pathname.as_ptr();
@@ -262,7 +262,11 @@ impl FdPathBox {
             FdPathMode::anyPath => 0,
             FdPathMode::directory => libc::O_DIRECTORY,
             FdPathMode::symlink => libc::O_NOFOLLOW,
-        });
+        }) | if cloexec {
+            libc::O_CLOEXEC
+        } else {
+            0
+        };
 
         let result = unsafe {
             binding::psys_openat(dirfd.get_fd(), pathname, flags, 0)
