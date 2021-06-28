@@ -3,7 +3,26 @@
 #![allow(non_snake_case)]
 
 mod binding {
+    use super::{CStr, FdPath, c_int, FdBasicOp};
+    use crate::error::{toResult, SyscallError};
+
     include!(concat!(env!("OUT_DIR"), "/syscall_binding.rs"));
+
+    pub fn openat_wrapper(
+        dirfd: FdPath,
+        pathname: &CStr,
+        flags: c_int,
+        mode: mode_t
+    ) -> Result<c_int, SyscallError>
+    {
+        let pathname = pathname.as_ptr();
+
+        let result = unsafe {
+            psys_openat(dirfd.get_fd(), pathname, flags, mode)
+        };
+        let fd = toResult(result as i64)?;
+        Ok(fd as c_int)
+    }
 }
 
 use std::ops::Deref;
@@ -101,13 +120,9 @@ impl FdBox {
     fn openat_impl(dirfd: FdPath, pathname: &CStr, flags: c_int, mode: binding::mode_t)
         -> Result<FdBox, SyscallError>
     {
-        let pathname = pathname.as_ptr();
-
-        let result = unsafe {
-            binding::psys_openat(dirfd.get_fd(), pathname, flags, mode)
-        };
-        let fd = toResult(result as i64)?;
-        Ok(unsafe { FdBox::from_raw(fd as c_int) })
+        Ok(unsafe {
+            FdBox::from_raw(binding::openat_wrapper(dirfd, pathname, flags, mode)?)
+        })
     }
 
     /// Open existing file.
@@ -265,19 +280,15 @@ impl FdPathBox {
     pub fn openat(dirfd: FdPath, pathname: &CStr, mode: FdPathMode, cloexec: bool)
         -> Result<FdPathBox, SyscallError>
     {
-        let pathname = pathname.as_ptr();
-
         let flags = if cloexec {
             libc::O_CLOEXEC
         } else {
             0
         } | libc::O_PATH | mode as c_int;
 
-        let result = unsafe {
-            binding::psys_openat(dirfd.get_fd(), pathname, flags, 0)
-        };
-        let fd = toResult(result as i64)?;
-        Ok(unsafe { FdPathBox::from_raw(fd as c_int) })
+        Ok(unsafe {
+            FdPathBox::from_raw(binding::openat_wrapper(dirfd, pathname, flags, 0)?)
+        })
     }
 }
 impl Deref for FdPathBox {
