@@ -7,8 +7,8 @@ mod binding {
 }
 
 use std::ops::Deref;
-use std::os::raw::{c_void, c_int, c_long, c_char};
-use std::ffi::CStr;
+pub use std::os::raw::{c_void, c_int, c_long, c_char};
+pub use std::ffi::CStr;
 use std::io::{Write, Read};
 
 pub use binding::{sigset_t, pid_t, uid_t, gid_t};
