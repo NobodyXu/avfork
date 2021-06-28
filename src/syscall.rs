@@ -101,7 +101,7 @@ impl FdBox {
     ///  * `mode` - ignored if O_CREAT is not passed
     ///
     /// Check manpage for openat for more documentation.
-    fn openat_impl(dirfd: Fd, pathname: &CStr, flags: c_int, mode: binding::mode_t)
+    fn openat_impl(dirfd: FdPath, pathname: &CStr, flags: c_int, mode: binding::mode_t)
         -> Result<FdBox, SyscallError>
     {
         let pathname = pathname.as_ptr();
@@ -118,7 +118,7 @@ impl FdBox {
     ///  * `dirfd` - can be `AT_FDCWD`
     ///
     /// Check manpage for openat for more documentation.
-    pub fn openat(dirfd: Fd, pathname: &CStr, accMode: AccessMode, flags: FdFlags)
+    pub fn openat(dirfd: FdPath, pathname: &CStr, accMode: AccessMode, flags: FdFlags)
         -> Result<FdBox, SyscallError>
     {
         FdBox::openat_impl(dirfd, pathname, (accMode as i32) | flags.bits, 0)
@@ -132,7 +132,7 @@ impl FdBox {
     ///
     /// Check manpage for openat for more documentation.
     pub fn creatat(
-        dirfd: Fd, pathname: &CStr, accMode: AccessMode, flags: FdFlags,
+        dirfd: FdPath, pathname: &CStr, accMode: AccessMode, flags: FdFlags,
         cflags: FdCreatFlags, exclusive: bool, mode: Mode
     )
         -> Result<FdBox, SyscallError>
@@ -200,15 +200,6 @@ impl Fd {
             binding::psys_write(self.get_fd(), buf_ptr, buf_len)
         })? as usize)
     }
-
-    /// Check manpage for fchdir for more documentation.
-    pub fn fchdir(&self) -> Result<(), SyscallError> {
-        let fd = self.get_fd();
-
-        toResult(unsafe { binding::psys_fchdir(fd) } as i64)?;
-
-        Ok(())
-    }
 }
 /// impl Write for Fd so that write!, writeln! and other methods that
 /// requires trait Write can be called upon it.
@@ -242,6 +233,86 @@ impl Deref for Fd {
 }
 
 #[derive(Copy, Clone, Debug)]
+pub enum FdPathMode {
+    anyPath,
+    directory,
+    symlink,
+}
+
+#[derive(Debug)]
+pub struct FdPathBox {
+    fd: FdPath,
+}
+impl FdPathBox {
+    pub const fn from_raw(fd: c_int) -> FdPathBox {
+        FdPathBox { fd: FdPath::from_raw(fd) }
+    }
+
+    pub fn openat(dirfd: FdPath, pathname: &CStr, mode: FdPathMode)
+        -> Result<FdPathBox, SyscallError>
+    {
+        let pathname = pathname.as_ptr();
+
+        let flags = libc::O_PATH | (match mode {
+            FdPathMode::anyPath => 0,
+            FdPathMode::directory => libc::O_DIRECTORY,
+            FdPathMode::symlink => libc::O_NOFOLLOW,
+        });
+
+        let result = unsafe {
+            binding::psys_openat(dirfd.get_fd(), pathname, flags, 0)
+        };
+        let fd = toResult(result as i64)?;
+        Ok(FdPathBox::from_raw(fd as c_int))
+    }
+}
+impl Deref for FdPathBox {
+    type Target = FdPath;
+
+    fn deref(&self) ->&Self::Target {
+        &self.fd
+    }
+}
+impl Drop for FdPathBox {
+    fn drop(&mut self) {
+        unsafe {
+            binding::psys_close(self.fd.get_fd());
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct FdPath {
+    fd: FdBasics,
+}
+impl FdPath {
+    pub const fn from_raw(fd: c_int) -> FdPath {
+        FdPath { fd: FdBasics::from_raw(fd) }
+    }
+
+    pub const fn get_fd(&self) -> c_int {
+        self.fd.get_fd()
+    }
+
+    /// Pre condition: self is opened in dir mode
+    /// Check manpage for fchdir for more documentation.
+    pub fn fchdir(&self) -> Result<(), SyscallError> {
+        let fd = self.get_fd();
+
+        toResult(unsafe { binding::psys_fchdir(fd) } as i64)?;
+
+        Ok(())
+    }
+}
+impl Deref for FdPath {
+    type Target = FdBasics;
+
+    fn deref(&self) ->&Self::Target {
+        &self.fd
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
 pub struct FdBasics {
     fd: c_int,
 }
@@ -262,7 +333,7 @@ impl FdBasics {
     }
 }
 
-pub const AT_FDCWD: FdBasics = FdBasics::from_raw(binding::AT_FDCWD);
+pub const AT_FDCWD: FdPath = FdPath::from_raw(binding::AT_FDCWD);
 pub const STDOUT: Fd = Fd::from_raw(1);
 pub const STDERR: Fd = Fd::from_raw(2);
 
@@ -647,7 +718,7 @@ bitflags! {
 /// This syscall is native to linux, but is emulated on any other target
 /// Checks `man 2 execveat` for more info.
 pub fn execveat(
-    dirfd: Fd,
+    dirfd: FdPath,
     pathname: &CStr,
     argv: &CStrArray,
     envp: &CStrArray,
