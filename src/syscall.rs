@@ -163,7 +163,7 @@ impl FdBox {
 impl Drop for FdBox {
     fn drop(&mut self) {
         unsafe {
-            binding::psys_close(self.fd.get_fd());
+            binding::psys_close(self.get_fd());
         }
     }
 }
@@ -283,7 +283,7 @@ impl Deref for FdPathBox {
 impl Drop for FdPathBox {
     fn drop(&mut self) {
         unsafe {
-            binding::psys_close(self.fd.get_fd());
+            binding::psys_close(self.get_fd());
         }
     }
 }
