@@ -321,6 +321,10 @@ pub trait FromRaw {
     ///  * `fd` - must be a valid fd
     unsafe fn from_raw(fd: c_int) -> Self;
 }
+fn dup(oldfd: c_int) -> Result<c_int, SyscallError> {
+    let fd = toResult(unsafe { binding::psys_dup(oldfd) } as i64)?;
+    Ok(fd as c_int)
+}
 fn dup3(oldfd: c_int, newfd: c_int, flags: FdFlags) -> Result<c_int, SyscallError> {
     let fd = toResult(unsafe { binding::psys_dup3(oldfd, newfd, flags.bits) } as i64)?;
     Ok(fd as c_int)
@@ -333,6 +337,11 @@ pub trait FdBasicOp {
     /// Check manpage for dup3 for more documentation.
     fn dup3(&self, newfd: c_int, flags: FdFlags) -> Result<Self::BoxedFd, SyscallError> {
         Ok(unsafe { Self::BoxedFd::from_raw(dup3(self.get_fd(), newfd, flags)?) })
+    }
+
+    /// Check manpage for dup for more documentation.
+    fn dup(&self) -> Result<Self::BoxedFd, SyscallError> {
+        Ok(unsafe { Self::BoxedFd::from_raw(dup(self.get_fd())?) })
     }
 }
 
