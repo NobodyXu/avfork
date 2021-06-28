@@ -232,7 +232,7 @@ pub fn avfork<Func>(stack_alloc: &StackObjectAllocator, func: Pin<&Func>)
         aspawn(&mut pid, &stack, callback, to_void_ptr(func_ref) as *mut c_void) as i64
     })?;
 
-    Ok((FdBox::from_raw(fd as i32), pid))
+    Ok((unsafe { FdBox::from_raw(fd as i32) }, pid))
 }
 
 /// **NOT TESTED**
@@ -278,7 +278,7 @@ pub fn avfork_rec<Func>(
         aspawn_rec(&mut pid, &stack, callback, arg, to_void_ptr(old_sigset)) as i64
     })?;
 
-    Ok((FdBox::from_raw(fd as i32), pid))
+    Ok((unsafe { FdBox::from_raw(fd as i32) }, pid))
 }
 
 #[cfg(test)]

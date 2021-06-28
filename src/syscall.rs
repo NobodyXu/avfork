@@ -93,7 +93,9 @@ pub struct FdBox {
     fd: Fd,
 }
 impl FdBox {
-    pub const fn from_raw(fd: c_int) -> FdBox {
+    /// # Safety
+    ///  * `fd` - must be a valid fd that isn't opened with `O_PATH` or `O_DIRECTORY`
+    pub const unsafe fn from_raw(fd: c_int) -> FdBox {
         FdBox { fd: Fd::from_raw(fd) }
     }
 
@@ -110,7 +112,7 @@ impl FdBox {
             binding::psys_openat(dirfd.get_fd(), pathname, flags, mode)
         };
         let fd = toResult(result as i64)?;
-        Ok(FdBox::from_raw(fd as c_int))
+        Ok(unsafe { FdBox::from_raw(fd as c_int) })
     }
 
     /// Open existing file.
@@ -154,7 +156,7 @@ impl FdBox {
 
         toResult(unsafe { binding::psys_pipe2(pipefd.as_mut_ptr(), flag.bits) } as i64)?;
 
-        Ok(( FdBox::from_raw(pipefd[0]), FdBox::from_raw(pipefd[1]) ))
+        Ok(unsafe {( FdBox::from_raw(pipefd[0]), FdBox::from_raw(pipefd[1]) )})
     }
 }
 impl Drop for FdBox {
@@ -177,7 +179,9 @@ pub struct Fd {
     fd: FdBasics
 }
 impl Fd {
-    pub const fn from_raw(fd: c_int) -> Fd {
+    /// # Safety
+    ///  * `fd` - must be a valid fd that isn't opened with `O_PATH` or `O_DIRECTORY`
+    pub const unsafe fn from_raw(fd: c_int) -> Fd {
         Fd { fd: FdBasics::from_raw(fd) }
     }
 
@@ -240,7 +244,9 @@ pub struct FdPathBox {
     fd: FdPath,
 }
 impl FdPathBox {
-    pub const fn from_raw(fd: c_int) -> FdPathBox {
+    /// # Safety
+    ///  * `fd` - must be a valid fd that is opened with `O_PATH`
+    pub const unsafe fn from_raw(fd: c_int) -> FdPathBox {
         FdPathBox { fd: FdPath::from_raw(fd) }
     }
 
@@ -259,7 +265,7 @@ impl FdPathBox {
             binding::psys_openat(dirfd.get_fd(), pathname, flags, 0)
         };
         let fd = toResult(result as i64)?;
-        Ok(FdPathBox::from_raw(fd as c_int))
+        Ok(unsafe { FdPathBox::from_raw(fd as c_int) })
     }
 }
 impl Deref for FdPathBox {
@@ -282,7 +288,9 @@ pub struct FdPath {
     fd: FdBasics,
 }
 impl FdPath {
-    pub const fn from_raw(fd: c_int) -> FdPath {
+    /// # Safety
+    ///  * `fd` - must be a valid fd that is opened with `O_PATH`
+    pub const unsafe fn from_raw(fd: c_int) -> FdPath {
         FdPath { fd: FdBasics::from_raw(fd) }
     }
 
@@ -309,7 +317,9 @@ pub struct FdBasics {
     fd: c_int,
 }
 impl FdBasics {
-    pub const fn from_raw(fd: c_int) -> FdBasics {
+    /// # Safety
+    ///  * `fd` - must be a valid fd
+    pub const unsafe fn from_raw(fd: c_int) -> FdBasics {
         FdBasics { fd }
     }
 
@@ -321,13 +331,13 @@ impl FdBasics {
     pub fn dup3(&self, newfd: c_int, flags: FdFlags) -> Result<FdBox, SyscallError> {
         let oldfd = self.fd;
         let fd = toResult(unsafe { binding::psys_dup3(oldfd, newfd, flags.bits) } as i64)?;
-        Ok(FdBox::from_raw(fd as c_int))
+        Ok(unsafe { FdBox::from_raw(fd as c_int) })
     }
 }
 
-pub const AT_FDCWD: FdPath = FdPath::from_raw(binding::AT_FDCWD);
-pub const STDOUT: Fd = Fd::from_raw(1);
-pub const STDERR: Fd = Fd::from_raw(2);
+pub const AT_FDCWD: FdPath = unsafe { FdPath::from_raw(binding::AT_FDCWD) };
+pub const STDOUT: Fd = unsafe { Fd::from_raw(1) };
+pub const STDERR: Fd = unsafe { Fd::from_raw(2) };
 
 /// Check manpage for chdir for more documentation.
 pub fn chdir(pathname: &CStr) -> Result<(), SyscallError>
