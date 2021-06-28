@@ -92,13 +92,14 @@ bitflags! {
 pub struct FdBox {
     fd: Fd,
 }
-impl FdBox {
+impl FromRaw for FdBox {
     /// # Safety
     ///  * `fd` - must be a valid fd that isn't opened with `O_PATH` or `O_DIRECTORY`
-    pub const unsafe fn from_raw(fd: c_int) -> FdBox {
+    unsafe fn from_raw(fd: c_int) -> FdBox {
         FdBox { fd: Fd::from_raw(fd) }
     }
-
+}
+impl FdBox {
     ///  * `dirfd` - can be `AT_FDCWD`
     ///  * `mode` - ignored if O_CREAT is not passed
     ///
@@ -176,15 +177,23 @@ impl Deref for FdBox {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Fd {
-    fd: FdBasics
+    fd: c_int
 }
-impl Fd {
+impl FromRaw for Fd {
     /// # Safety
     ///  * `fd` - must be a valid fd that isn't opened with `O_PATH` or `O_DIRECTORY`
-    pub const unsafe fn from_raw(fd: c_int) -> Fd {
-        Fd { fd: FdBasics::from_raw(fd) }
+    unsafe fn from_raw(fd: c_int) -> Fd {
+        Fd { fd }
     }
+}
+impl FdBasicOp for Fd {
+    type BoxedFd = FdBox;
 
+    fn get_fd(&self) -> c_int {
+        self.fd
+    }
+}
+impl Fd {
     pub fn read(&self, buffer: &mut [u8]) -> Result<usize, SyscallError> {
         let buf_ptr = buffer.as_mut_ptr() as *mut c_void;
         let buf_len = buffer.len() as u64;
@@ -224,13 +233,6 @@ impl Read for Fd {
         }
     }
 }
-impl Deref for Fd {
-    type Target = FdBasics;
-
-    fn deref(&self) ->&Self::Target {
-        &self.fd
-    }
-}
 
 #[derive(Copy, Clone, Debug)]
 pub enum FdPathMode {
@@ -243,13 +245,14 @@ pub enum FdPathMode {
 pub struct FdPathBox {
     fd: FdPath,
 }
-impl FdPathBox {
+impl FromRaw for FdPathBox {
     /// # Safety
     ///  * `fd` - must be a valid fd that is opened with `O_PATH`
-    pub const unsafe fn from_raw(fd: c_int) -> FdPathBox {
+    unsafe fn from_raw(fd: c_int) -> FdPathBox {
         FdPathBox { fd: FdPath::from_raw(fd) }
     }
-
+}
+impl FdPathBox {
     pub fn openat(dirfd: FdPath, pathname: &CStr, mode: FdPathMode)
         -> Result<FdPathBox, SyscallError>
     {
@@ -285,15 +288,23 @@ impl Drop for FdPathBox {
 
 #[derive(Copy, Clone, Debug)]
 pub struct FdPath {
-    fd: FdBasics,
+    fd: c_int,
 }
-impl FdPath {
+impl FromRaw for FdPath {
     /// # Safety
     ///  * `fd` - must be a valid fd that is opened with `O_PATH`
-    pub const unsafe fn from_raw(fd: c_int) -> FdPath {
-        FdPath { fd: FdBasics::from_raw(fd) }
+    unsafe fn from_raw(fd: c_int) -> FdPath {
+        FdPath { fd }
     }
+}
+impl FdBasicOp for FdPath {
+    type BoxedFd = FdPathBox;
 
+    fn get_fd(&self) -> c_int {
+        self.fd
+    }
+}
+impl FdPath {
     /// Pre condition: self is opened in dir mode
     /// Check manpage for fchdir for more documentation.
     pub fn fchdir(&self) -> Result<(), SyscallError> {
@@ -304,40 +315,30 @@ impl FdPath {
         Ok(())
     }
 }
-impl Deref for FdPath {
-    type Target = FdBasics;
 
-    fn deref(&self) ->&Self::Target {
-        &self.fd
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct FdBasics {
-    fd: c_int,
-}
-impl FdBasics {
+pub trait FromRaw {
     /// # Safety
     ///  * `fd` - must be a valid fd
-    pub const unsafe fn from_raw(fd: c_int) -> FdBasics {
-        FdBasics { fd }
-    }
+    unsafe fn from_raw(fd: c_int) -> Self;
+}
+fn dup3(oldfd: c_int, newfd: c_int, flags: FdFlags) -> Result<c_int, SyscallError> {
+    let fd = toResult(unsafe { binding::psys_dup3(oldfd, newfd, flags.bits) } as i64)?;
+    Ok(fd as c_int)
+}
+pub trait FdBasicOp {
+    type BoxedFd: FromRaw;
 
-    pub const fn get_fd(&self) -> c_int {
-        self.fd
-    }
+    fn get_fd(&self) -> c_int;
 
     /// Check manpage for dup3 for more documentation.
-    pub fn dup3(&self, newfd: c_int, flags: FdFlags) -> Result<FdBox, SyscallError> {
-        let oldfd = self.fd;
-        let fd = toResult(unsafe { binding::psys_dup3(oldfd, newfd, flags.bits) } as i64)?;
-        Ok(unsafe { FdBox::from_raw(fd as c_int) })
+    fn dup3(&self, newfd: c_int, flags: FdFlags) -> Result<Self::BoxedFd, SyscallError> {
+        Ok(unsafe { Self::BoxedFd::from_raw(dup3(self.get_fd(), newfd, flags)?) })
     }
 }
 
-pub const AT_FDCWD: FdPath = unsafe { FdPath::from_raw(binding::AT_FDCWD) };
-pub const STDOUT: Fd = unsafe { Fd::from_raw(1) };
-pub const STDERR: Fd = unsafe { Fd::from_raw(2) };
+pub const AT_FDCWD: FdPath = FdPath { fd: binding::AT_FDCWD };
+pub const STDOUT: Fd = Fd { fd: 1 };
+pub const STDERR: Fd = Fd { fd: 2 };
 
 /// Check manpage for chdir for more documentation.
 pub fn chdir(pathname: &CStr) -> Result<(), SyscallError>

@@ -17,6 +17,7 @@ use error::toResult;
 pub use syscall::sigset_t;
 pub use syscall::pid_t;
 pub use syscall::{Fd, FdBox};
+use syscall::FromRaw;
 
 use utility::to_void_ptr;
 
