@@ -234,11 +234,13 @@ impl Read for Fd {
     }
 }
 
+// Here it relies on the compiler to check that i32 == c_int
+#[repr(i32)]
 #[derive(Copy, Clone, Debug)]
 pub enum FdPathMode {
-    anyPath,
-    directory,
-    symlink,
+    anyPath   = 0,
+    directory = libc::O_DIRECTORY,
+    symlink   = libc::O_NOFOLLOW,
 }
 
 #[derive(Debug)]
@@ -258,15 +260,11 @@ impl FdPathBox {
     {
         let pathname = pathname.as_ptr();
 
-        let flags = libc::O_PATH | (match mode {
-            FdPathMode::anyPath => 0,
-            FdPathMode::directory => libc::O_DIRECTORY,
-            FdPathMode::symlink => libc::O_NOFOLLOW,
-        }) | if cloexec {
+        let flags = if cloexec {
             libc::O_CLOEXEC
         } else {
             0
-        };
+        } | libc::O_PATH | mode as c_int;
 
         let result = unsafe {
             binding::psys_openat(dirfd.get_fd(), pathname, flags, 0)
