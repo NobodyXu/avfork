@@ -941,7 +941,8 @@ mod tests {
     #[test]
     fn test_execvel() {
         let paths = [to_cstr("/bin\0").unwrap()];
-        let mut argvVec: Vec<*const c_char> = [to_cstr("Hello\0").unwrap()]
+        let mut argvVec: Vec<*const c_char> =
+            [to_cstr("echo\0").unwrap(), to_cstr("Hello\0").unwrap()]
             .iter()
             .map(to_cstr_ptr)
             .collect();
