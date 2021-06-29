@@ -34,4 +34,7 @@ jobs:
       - name: Build
         run: cargo build -v
       - name:
-        run: cargo test -v -- --nocapture
+        run: |
+          ulimit -s unlimited
+          ulimit -a
+          cargo test -v -- --nocapture
