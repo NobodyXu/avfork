@@ -855,7 +855,12 @@ impl<'a> ExecvelCandidate<'a> {
 /// does not actually hardcoded this limit
 /// 
 /// So let's make PSYS_PATH_MAX 5 * 4096 just in case.
+///
+/// Include the null byte.
 pub const PATH_MAX: usize = 5 * 4096;
+
+/// Does not include the null byte.
+pub const FILENAME_MAX: usize = 255;
 
 /// These functions duplicate the actions of the shell in searching for 
 /// an executable file
@@ -952,7 +957,87 @@ pub fn execvel(
     }
 }
 
-// TODO: impl fexecvel that takes fd intead of paths
+#[derive(Copy, Clone, Debug)]
+pub struct FexecvelCandidate<'a> {
+    filename: &'a CStr,
+    paths: &'a [FdPath]
+}
+impl<'a> FexecvelCandidate<'a> {
+    /// * `filename` - must not contains any slash or empty, must be less than `PATH_MAX`
+    /// * `paths` - must not be empty
+    pub fn new(filename: &'a CStr, paths: &'a [FdPath])
+        -> Option<FexecvelCandidate<'a>>
+    {
+        let filename_sz = filename.to_bytes().len();
+        if filename_sz == 0 || filename_sz > FILENAME_MAX {
+            return None;
+        }
+
+        for byte in filename.to_bytes() {
+            if *byte == b'/' {
+                return None;
+            }
+        }
+
+        if paths.is_empty() {
+            return None;
+        }
+
+        Some(FexecvelCandidate { filename, paths })
+    }
+
+    pub fn get_filename(&self) -> &'a CStr {
+        self.filename
+    }
+
+    pub fn get_paths(&self) -> &'a [FdPath] {
+        self.paths
+    }
+}
+
+pub fn fexecvel(
+    candidate: &FexecvelCandidate,
+    argv: &CStrArray,
+    envp: &CStrArray
+) -> SyscallError
+{
+    let filename = candidate.get_filename();
+
+    let mut got_eaccess = false;
+
+    for pathfd in candidate.get_paths().iter() {
+        let err = execveat(*pathfd, filename, argv, envp, ExecveAtFlags::NONE);
+
+        match err.get_errno() as i32 {
+            libc::EACCES => {
+                // Record that we got a 'Permission denied' error.  If we end
+                // up finding no executable we can use, we want to diagnose
+                // that we did find one but were denied access.
+                got_eaccess = true;
+                continue;
+            },
+            // Those errors indicate the file is missing or not executable
+            // by us, in which case we want to just try the next path
+            // directory.
+            libc::ENOENT  => continue,
+            libc::ESTALE  => continue,
+            libc::ENOTDIR => continue,
+            // Some strange filesystems like AFS return even
+            // stranger error numbers.  They cannot reasonably mean
+            // anything else so ignore those, too.
+            libc::ENODEV    => continue,
+            libc::ETIMEDOUT => continue,
+    
+            _ => return err,
+        };
+    }
+
+    if got_eaccess {
+        SyscallError::new(libc::EACCES as u32)
+    } else {
+        SyscallError::new(libc::ENOENT as u32)
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -1000,5 +1085,32 @@ mod tests {
         // Test out macro_rules CStrArray!
         const argv2: CStrArray = CStrArray!("env");
         run_program("env", &argv2);
+    }
+
+    #[test]
+    fn test_fexecvel() {
+        let pathBoxs = [
+            FdPathBox::openat(AT_FDCWD, cstr!("/bin"), FdPathMode::anyPath, true)
+                .unwrap(),
+            FdPathBox::openat(AT_FDCWD, cstr!("/usr/bin"), FdPathMode::anyPath, true)
+                .unwrap(),
+        ];
+        let paths = [*pathBoxs[0], *pathBoxs[1]];
+
+        const envp: CStrArray = CStrArray!("A=B");
+
+        let run_program = |filename, argv_var| {
+            let candidate = FexecvelCandidate::new(filename, &paths)
+                .unwrap();
+            assert_eq!(run(|| {
+                errx!(1, "{}", fexecvel(&candidate, argv_var, &envp));
+            }), 0);
+        };
+        const argv: &'static CStrArray = &CStrArray!("echo", "Hello");
+        run_program(cstr!("echo"), argv);
+
+        // Test out macro_rules CStrArray!
+        const argv2: &'static CStrArray = &CStrArray!("env");
+        run_program(cstr!("env"), argv2);
     }
 }
