@@ -32,6 +32,6 @@ jobs:
       - name: Listing the dir for debugging
         run: tree
       - name: Build
-        run: RUSTFLAGS="-C link-args=-fuse-ld=lld -Z sanitizer=address" cargo +nightly build -v
-      - name: Run tests
-        run: RUSTFLAGS="-C link-args=-fuse-ld=lld -Z sanitizer=address" cargo +nightly test -v -- --nocapture
+        run: cargo build -v
+      - name:
+        run: cargo test -v -- --nocapture
