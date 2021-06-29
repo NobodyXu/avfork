@@ -940,7 +940,7 @@ mod tests {
 
     #[test]
     fn test_execvel() {
-        let paths = [to_cstr("/bin\0").unwrap()];
+        let paths = [to_cstr("/bin\0").unwrap(), to_cstr("/usr/bin\0").unwrap()];
         let mut argvVec: Vec<*const c_char> =
             [to_cstr("echo\0").unwrap(), to_cstr("Hello\0").unwrap()]
             .iter()
@@ -958,10 +958,23 @@ mod tests {
 
         let envp = CStrArray::new(&envpVec).unwrap();
 
-        let candidate = ExecvelCandidate::new(to_cstr("echo\0").unwrap(), &paths)
-            .unwrap();
-        assert_eq!(run(|| {
-            errx!(1, "{}", execvel(&candidate, &argv, &envp));
-        }), 0);
+        let run_program = |filename, argv| {
+            let candidate = ExecvelCandidate::new(to_cstr(filename).unwrap(), &paths)
+                .unwrap();
+            assert_eq!(run(|| {
+                errx!(1, "{}", execvel(&candidate, argv, &envp));
+            }), 0);
+        };
+        run_program("echo\0", &argv);
+
+        let mut argvVec: Vec<*const c_char> =
+            [to_cstr("env\0").unwrap()]
+            .iter()
+            .map(to_cstr_ptr)
+            .collect();
+        argvVec.push(std::ptr::null());
+        let argv = CStrArray::new(&argvVec).unwrap();
+
+        run_program("env\0", &argv);
     }
 }
