@@ -769,6 +769,7 @@ pub fn execve(pathname: &CStr, argv: &CStrArray, envp: &CStrArray) -> SyscallErr
 
 bitflags! {
     pub struct ExecveAtFlags: c_int {
+        const NONE = 0;
         const AT_EMPTY_PATH       = libc::AT_EMPTY_PATH;
         const AT_SYMLINK_NOFOLLOW = libc::AT_SYMLINK_NOFOLLOW;
     }
