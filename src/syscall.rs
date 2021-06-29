@@ -782,23 +782,23 @@ pub fn execveat(
 
 #[derive(Copy, Clone, Debug)]
 pub struct ExecvelCandidate<'a> {
-    filename: &'a CStr,
-    paths: &'a [&'a CStr]
+    filename: &'a str,
+    paths: &'a [&'a str]
 }
 impl<'a> ExecvelCandidate<'a> {
     /// * `filename` - must not contains any slash or empty, must be less than `PATH_MAX`
     /// * `paths` - must not be empty and neither should each element in it be empty,
     ///   and len of each element plus len of filename plus 1 must be less than 
     ///   `PATH_MAX`.
-    pub fn new(filename: &'a CStr, paths: &'a [&'a CStr])
+    pub fn new(filename: &'a str, paths: &'a [&'a str])
         -> Option<ExecvelCandidate<'a>>
     {
-        let filename_sz = filename.to_bytes().len();
+        let filename_sz = filename.as_bytes().len();
         if filename_sz == 0 {
             return None;
         }
 
-        for byte in filename.to_bytes() {
+        for byte in filename.as_bytes() {
             if *byte == b'/' {
                 return None;
             }
@@ -809,7 +809,7 @@ impl<'a> ExecvelCandidate<'a> {
         }
 
         for path in paths {
-            let path = path.to_bytes();
+            let path = path.as_bytes();
 
             // The additional two bytes is for the slash and the null bytes
             let size = filename_sz + path.len() + 2;
@@ -819,6 +819,14 @@ impl<'a> ExecvelCandidate<'a> {
         }
 
         Some(ExecvelCandidate { filename, paths })
+    }
+
+    pub fn get_filename(&self) -> &'a str {
+        self.filename
+    }
+
+    pub fn get_paths(&self) -> &'a [&'a str] {
+        self.paths
     }
 }
 
@@ -868,14 +876,14 @@ pub fn execvel(
         };
     };
 
-    let filename = candidate.filename.to_bytes();
+    let filename = candidate.get_filename().as_bytes();
     let filename_sz = filename.len();
     let filename = filename.as_ptr();
 
     let mut got_eaccess = false;
 
-    for path in candidate.paths.iter() {
-        let path = path.to_bytes();
+    for path in candidate.get_paths().iter() {
+        let path = path.as_bytes();
         let path_sz = path.len();
         let path = path.as_ptr();
 
@@ -940,7 +948,8 @@ mod tests {
 
     #[test]
     fn test_execvel() {
-        let paths = [to_cstr("/bin\0").unwrap(), to_cstr("/usr/bin\0").unwrap()];
+        let paths = ["/bin", "/usr/bin"];
+
         let mut argvVec: Vec<*const c_char> =
             [to_cstr("echo\0").unwrap(), to_cstr("Hello\0").unwrap()]
             .iter()
@@ -959,13 +968,13 @@ mod tests {
         let envp = CStrArray::new(&envpVec).unwrap();
 
         let run_program = |filename, argv| {
-            let candidate = ExecvelCandidate::new(to_cstr(filename).unwrap(), &paths)
+            let candidate = ExecvelCandidate::new(filename, &paths)
                 .unwrap();
             assert_eq!(run(|| {
                 errx!(1, "{}", execvel(&candidate, argv, &envp));
             }), 0);
         };
-        run_program("echo\0", &argv);
+        run_program("echo", &argv);
 
         let mut argvVec: Vec<*const c_char> =
             [to_cstr("env\0").unwrap()]
@@ -975,6 +984,6 @@ mod tests {
         argvVec.push(std::ptr::null());
         let argv = CStrArray::new(&argvVec).unwrap();
 
-        run_program("env\0", &argv);
+        run_program("env", &argv);
     }
 }
