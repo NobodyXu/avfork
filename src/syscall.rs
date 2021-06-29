@@ -811,7 +811,8 @@ impl<'a> ExecvelCandidate<'a> {
         for path in paths {
             let path = path.to_bytes();
 
-            let size = filename_sz + path.len() + 1 /* The additional '//' (escaped) */;
+            // The additional two bytes is for the slash and the null bytes
+            let size = filename_sz + path.len() + 2;
             if path.is_empty() || size > PATH_MAX {
                 return None;
             }
@@ -861,6 +862,11 @@ pub fn execvel(
             );
         };
     };
+    let write_one_byte = |size, byte| {
+        unsafe {
+            constructed_path_ptr.add(size).write(byte);
+        };
+    };
 
     let filename = candidate.filename.to_bytes();
     let filename_sz = filename.len();
@@ -874,10 +880,9 @@ pub fn execvel(
         let path = path.as_ptr();
 
         pmemcpy(0, path, path_sz);
-        unsafe {
-            constructed_path_ptr.add(path_sz).write(b'/');
-        };
+        write_one_byte(path_sz, b'/');
         pmemcpy(path_sz + 1, filename, filename_sz);
+        write_one_byte(path_sz + 1 + filename_sz, b'\0');
 
         let ret = unsafe {
             binding::psys_execve(constructed_path.as_ptr() as *const c_char, argv, envp)
@@ -918,6 +923,7 @@ pub fn execvel(
     }
 }
 
+// TODO: impl fexecvel that takes fd intead of paths
 
 #[cfg(test)]
 mod tests {
