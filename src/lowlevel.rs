@@ -4,7 +4,6 @@ use std::cell::UnsafeCell;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_void, c_int};
 use std::marker::PhantomData;
-//use std::str::from_utf8;
 
 use crate::error;
 use crate::aspawn;
@@ -285,6 +284,9 @@ pub fn avfork_rec<Func>(
 #[cfg(test)]
 mod tests {
     use crate::lowlevel::*;
+    use std::fs::File;
+    use std::io;
+    use crate::syscall::{PrlimitResource, prlimit};
 
     #[test]
     fn test_stack_init() {
@@ -379,76 +381,79 @@ mod tests {
         }
     }
 
-    //fn dummy_avfork_rec_callback(fd: Fd, old_sigset: &mut sigset_t) -> c_int {
-    //    let mut stack = Stack::new();
+    fn dummy_avfork_rec_callback(fd: Fd, old_sigset: &mut sigset_t) -> c_int {
+        let mut stack = Stack::new();
 
-    //    let allocator = match stack.reserve(0, 100) {
-    //        Ok(alloc) => alloc,
-    //        // TODO: Print SyscallError
-    //        Err(_) => {
-    //            let _ = fd.write("Failed to allocate stack".as_bytes());
-    //            return 1
-    //        }
-    //    };
+        let allocator = match stack.reserve(0, 100) {
+            Ok(alloc) => alloc,
+            // TODO: Print SyscallError
+            Err(_) => {
+                let _ = fd.write("Failed to allocate stack".as_bytes());
+                return 1
+            }
+        };
 
-    //    let f = match allocator.alloc_obj(dummy_avfork_callback) {
-    //        Ok(f) => f,
-    //        Err(_) => {
-    //            let _ = fd.write("allocation failed".as_bytes());
-    //            return 1
-    //        },
-    //    };
+        let f = match allocator.alloc_obj(dummy_avfork_callback) {
+            Ok(f) => f,
+            Err(_) => {
+                let _ = fd.write("allocation failed".as_bytes());
+                return 1
+            },
+        };
 
-    //    let (fd2, _pid) = match avfork_rec(&allocator, f.pin(), old_sigset) {
-    //        Ok(ret) => ret,
-    //        Err(err) => {
-    //            let _ = fd.write(err.get_msg().as_bytes());
-    //            return 1
-    //        }
-    //    };
+        let (fd2, _pid) = match avfork_rec(&allocator, f.pin(), old_sigset) {
+            Ok(ret) => ret,
+            Err(err) => {
+                let _ = fd.write(err.get_msg().as_bytes());
+                return 1
+            }
+        };
 
-    //    let mut buf = [1 as u8; 1];
-    //    match fd2.read(&mut buf) {
-    //        Ok(cnt) => {
-    //            if cnt != 0 {
-    //                let _ = fd.write("cnt != 0 in dummy_avfork_rec_callback".as_bytes());
-    //                1
-    //            } else {
-    //                0
-    //            }
-    //        },
-    //        Err(_) => {
-    //            let _ = fd.write("There shouldn't be any error".as_bytes());
-    //            1
-    //        }
-    //    }
-    //}
+        let mut buf = [1 as u8; 1];
+        match fd2.read(&mut buf) {
+            Ok(cnt) => {
+                if cnt != 0 {
+                    let _ = fd.write("cnt != 0 in dummy_avfork_rec_callback".as_bytes());
+                    1
+                } else {
+                    0
+                }
+            },
+            Err(_) => {
+                let _ = fd.write("There shouldn't be any error".as_bytes());
+                1
+            }
+        }
+    }
 
-    //#[test]
-    //fn test_avfork_rec_naive() {
-    //    let mut stack = Stack::new();
-    //    // Allocate 100 pages for dummy_avfork_rec_callback, since under debugging mode
-    //    // with asan, memory can be eaten up pretty easily.
-    //    let allocator = stack.reserve(100 * 4096, 100).unwrap();
+    #[test]
+    fn test_avfork_rec_naive() {
+        let mut stack = Stack::new();
+        // Allocate 100 pages for dummy_avfork_rec_callback, since under debugging mode
+        // with asan, memory can be eaten up pretty easily.
+        let allocator = stack.reserve(100 * 4096, 100).unwrap();
 
-    //    let f = match allocator.alloc_obj(dummy_avfork_rec_callback) {
-    //        Ok(f) => f,
-    //        Err(_) => panic!("allocation failed"),
-    //    };
+        let f = match allocator.alloc_obj(dummy_avfork_rec_callback) {
+            Ok(f) => f,
+            Err(_) => panic!("allocation failed"),
+        };
 
-    //    println!("allocator = {:#?}", allocator);
+        println!("allocator = {:#?}", allocator);
 
-    //    let (fd, _pid) = avfork(&allocator, f.pin()).unwrap();
+        let mut file = File::open("/proc/self/maps").unwrap();
+        io::copy(&mut file, &mut io::stdout()).unwrap();
 
-    //    let mut buf = [200 as u8; 1];
-    //    match fd.read(&mut buf) {
-    //        Ok(cnt) => {
-    //            if cnt != 0 {
-    //                let err_msg = from_utf8(&buf).unwrap();
-    //                panic!("dummy_avfork_rec_callback failed: {}", err_msg);
-    //            }
-    //        },
-    //        Err(_) => panic!("There shouldn't be any error")
-    //    };
-    //}
+        let (fd, _pid) = avfork(&allocator, f.pin()).unwrap();
+
+        let mut buf = [200 as u8; 1];
+        match fd.read(&mut buf) {
+            Ok(cnt) => {
+                if cnt != 0 {
+                    let err_msg = std::str::from_utf8(&buf).unwrap();
+                    panic!("dummy_avfork_rec_callback failed: {}", err_msg);
+                }
+            },
+            Err(_) => panic!("There shouldn't be any error")
+        };
+    }
 }
