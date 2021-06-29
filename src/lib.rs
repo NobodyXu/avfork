@@ -18,6 +18,9 @@ extern crate once_cell;
 extern crate libc;
 #[macro_use]
 extern crate bitflags;
+#[macro_use]
+extern crate cstr;
 
 #[cfg(test)]
-#[macro_use] extern crate assert_matches;
+#[macro_use]
+extern crate assert_matches;

@@ -719,7 +719,27 @@ pub fn exit(status: c_int) -> ! {
 pub struct CStrArray<'a> {
     arr: &'a [*const c_char]
 }
+/// Return a literal of type CStrArray
+#[macro_export]
+macro_rules! CStrArray {
+    ( $( $s:literal ),* ) => {
+        unsafe {
+            $crate::syscall::CStrArray::from_raw(&[
+                $(
+                    cstr!($s).as_ptr(),
+                )*
+                std::ptr::null()
+            ])
+        }
+    };
+}
 impl<'a> CStrArray<'a> {
+    /// # Safety
+    /// This function call is for macro_rules CStrArray!
+    pub const unsafe fn from_raw(arr: &'a [*const c_char]) -> CStrArray<'a> {
+        CStrArray { arr }
+    }
+
     pub fn new(arr: &'a [*const c_char]) -> Option<CStrArray<'a>> {
         if let Some(last) = arr.last() {
             if *last == std::ptr::null() {
@@ -976,14 +996,8 @@ mod tests {
         };
         run_program("echo", &argv);
 
-        let mut argvVec: Vec<*const c_char> =
-            [to_cstr("env\0").unwrap()]
-            .iter()
-            .map(to_cstr_ptr)
-            .collect();
-        argvVec.push(std::ptr::null());
-        let argv = CStrArray::new(&argvVec).unwrap();
-
-        run_program("env", &argv);
+        // Test out macro_rules CStrArray!
+        const argv2: CStrArray = CStrArray!("env");
+        run_program("env", &argv2);
     }
 }
