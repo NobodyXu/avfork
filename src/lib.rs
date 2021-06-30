@@ -18,6 +18,7 @@ pub mod lowlevel;
 pub mod process;
 
 mod StacksQueue;
+mod SignalFd;
 
 extern crate once_cell;
 extern crate libc;
