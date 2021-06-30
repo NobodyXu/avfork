@@ -199,6 +199,7 @@ fn aspawn_fn<Func>(arg: *mut c_void, write_end_fd: c_int, old_sigset: *mut c_voi
 ///   When this function is called, it is guaranteed that:
 ///    - all signals are masked,
 ///    - all signal handlers are cleared,
+///   
 ///   **WARNING**: func should not panic or allocate anything on heap
 ///                It also should not close the fd passed in, otherwise its stack
 ///                might get invalidated and SIGSEGV.
@@ -214,6 +215,10 @@ fn aspawn_fn<Func>(arg: *mut c_void, write_end_fd: c_int, old_sigset: *mut c_voi
 /// In the function fn, you can only use syscall declared in syscall
 /// Use of any glibc function or any function that modifies 
 /// global/thread-local variable is undefined behavior.
+///
+/// # Example
+///
+/// Check directory `examples/avfork.rs` for example on this function.
 pub fn avfork<Func>(stack_alloc: &StackObjectAllocator, func: Pin<&Func>)
     -> Result<(FdBox, pid_t), SyscallError> where Func: Fn(Fd, &mut sigset_t) -> c_int 
 {
