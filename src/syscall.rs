@@ -712,7 +712,7 @@ pub fn exit(status: c_int) -> ! {
     unsafe {
         binding::psys_exit(status);
     }
-    unimplemented!()
+    unreachable!()
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -762,7 +762,7 @@ pub fn execve(pathname: &CStr, argv: &CStrArray, envp: &CStrArray) -> SyscallErr
     };
 
     match toResult(ret as i64) {
-        Ok(_) => unimplemented!(),
+        Ok(_) => unreachable!(),
         Err(err) => err
     }
 }
@@ -796,7 +796,7 @@ pub fn execveat(
     };
 
     match toResult(ret as i64) {
-        Ok(_) => unimplemented!(),
+        Ok(_) => unreachable!(),
         Err(err) => err
     }
 }
@@ -922,7 +922,7 @@ pub fn execvel(
             binding::psys_execve(constructed_path.as_ptr() as *const c_char, argv, envp)
         };
         let err = match toResult(ret as i64) {
-            Ok(_) => unimplemented!(),
+            Ok(_) => unreachable!(),
             Err(err) => err
         };
 
