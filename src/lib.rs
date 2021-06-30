@@ -17,6 +17,8 @@ pub mod lowlevel;
 /// highlevel wrapper of aspawn
 pub mod process;
 
+mod StacksQueue;
+
 extern crate once_cell;
 extern crate libc;
 #[macro_use]
