@@ -24,6 +24,7 @@ use utility::to_void_ptr;
 pub struct Stack {
     stack_impl: aspawn::Stack_t,
 }
+unsafe impl Send for Stack {}
 impl Default for Stack {
     fn default() -> Stack {
         Stack::new()
