@@ -4,6 +4,9 @@ use crate::lowlevel;
 use crate::syscall;
 use crate::error;
 use crate::utility;
+use crate::StacksQueue;
+
+use lowlevel::{Stack, StackObjectAllocator};
 
 pub use error::SyscallError;
 pub use utility::{expect, unwrap};

@@ -19,6 +19,7 @@ pub mod process;
 
 mod StacksQueue;
 
+extern crate crossbeam_queue;
 extern crate once_cell;
 extern crate libc;
 #[macro_use]
