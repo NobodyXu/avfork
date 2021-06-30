@@ -117,3 +117,38 @@ pub struct ExitInfo {
     /// system time consumed
     stime: libc::clock_t,
 }
+impl ExitInfo {
+    /// uid of the process when it exits
+    pub fn get_uid(&self) -> libc::uid_t {
+        self.uid
+    }
+
+    /// user time consumed by the process
+    pub fn get_utime(&self) -> libc::clock_t {
+        self.utime
+    }
+
+    /// system time consumed by the process
+    pub fn get_stime(&self) -> libc::clock_t {
+        self.stime
+    }
+
+    /// Get exit status if the child terminated normally instead of terminated
+    /// by signal
+    pub fn get_exit_status(&self) -> Option<c_int> {
+        if libc::WIFEXITED(self.wstatus) {
+            Some(libc::WEXITSTATUS(self.wstatus))
+        } else {
+            None
+        }
+    }
+
+    /// Get the signal that terminated the process if it is killed by signal
+    pub fn get_term_sig(&self) -> Option<c_int> {
+        if libc::WIFSIGNALED(self.wstatus) {
+            Some(libc::WTERMSIG(self.wstatus))
+        } else {
+            None
+        }
+    }
+}
