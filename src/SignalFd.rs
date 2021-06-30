@@ -1,18 +1,26 @@
 use std::io::{Result, Error};
 use std::os::raw::{c_void, c_int, c_long, c_char};
+use std::mem::{self, size_of, size_of_val, MaybeUninit};
 
 use libc::{signalfd, signalfd_siginfo, SFD_CLOEXEC, SFD_NONBLOCK, SIGCHLD};
 use libc::{sigset_t, SIG_BLOCK, sigemptyset, sigaddset, sigprocmask};
 
+use libc::pid_t;
+
 use tokio::io::unix::AsyncFd;
 use tokio::io::Interest;
 
+use waitmap::WaitMap;
+
 use crate::syscall::{FdBox, FromRaw};
+
+const SIGINFO_BUFSIZE: usize = 20;
 
 /// Due to the fact that epoll on signalfd would fail after fork, you cannot use
 /// SigChldFd after forked
 pub struct SigChldFd {
-    inner: AsyncFd<FdBox>
+    inner: AsyncFd<FdBox>,
+    map: WaitMap<pid_t, ExitInfo>
 }
 impl SigChldFd {
     pub fn new() -> Result<SigChldFd> {
@@ -43,7 +51,8 @@ impl SigChldFd {
         let fd = unsafe { FdBox::from_raw(fd) };
 
         Ok(SigChldFd {
-            inner: AsyncFd::with_interest(fd, Interest::READABLE)?
+            inner: AsyncFd::with_interest(fd, Interest::READABLE)?,
+            map: WaitMap::new()
         })
     }
 
@@ -60,22 +69,51 @@ impl SigChldFd {
         }
     }
 
-    async fn read(&self) -> Result<()> {
-        ;
+    pub async fn read(&self) -> Result<()> {
+        let mut siginfos: [MaybeUninit<signalfd_siginfo>; SIGINFO_BUFSIZE] = unsafe {
+            // MaybeUninit does not initialization
+            MaybeUninit::uninit().assume_init()
+        };
 
-        unimplemented!()
+        let cnt = self.read_bytes(unsafe {
+            std::slice::from_raw_parts_mut(
+                siginfos.as_mut_ptr() as *mut u8,
+                size_of_val(&siginfos)
+            )
+        }).await?;
+
+        assert_eq!(cnt % size_of::<signalfd_siginfo>(), 0);
+        let items = cnt / size_of::<signalfd_siginfo>();
+
+        let recevied_siginfos = &siginfos[0..items];
+        for each in recevied_siginfos {
+            let siginfo = unsafe { each.assume_init() };
+
+            let wstatus = siginfo.ssi_status;
+            if libc::WIFEXITED(wstatus) || libc::WIFSIGNALED(wstatus) {
+                self.map.insert(
+                    siginfo.ssi_pid as pid_t,
+                    ExitInfo {
+                        uid: siginfo.ssi_uid,
+                        wstatus,
+                        utime: siginfo.ssi_utime as libc::clock_t,
+                        stime: siginfo.ssi_stime as libc::clock_t
+                    }
+                );
+            }
+        }
+
+        Ok(())
     }
 }
 
 pub struct ExitInfo {
-    /// pid of the child
-    si_pid: libc::pid_t,
     /// uid of the child when it exits
-    si_uid: libc::uid_t,
+    uid: libc::uid_t,
     /// exit status of the child
-    si_status: c_int,
+    wstatus: c_int,
     /// user time consumed
-    si_utime: libc::clock_t,
+    utime: libc::clock_t,
     /// system time consumed
-    si_stime: libc::clock_t,
+    stime: libc::clock_t,
 }
