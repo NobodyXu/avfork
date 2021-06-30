@@ -41,6 +41,7 @@ pub use std::os::raw::{c_void, c_int, c_long, c_char};
 pub use std::ffi::CStr;
 use std::io::{Write, Read};
 use std::hint::unreachable_unchecked;
+use std::os::unix::io::{AsRawFd, RawFd};
 
 pub use binding::{sigset_t, pid_t, uid_t, gid_t};
 
@@ -113,10 +114,21 @@ bitflags! {
     }
 }
 
+macro_rules! impl_AsRawFd_for {
+    ($t: ident) => (
+        impl AsRawFd for $t {
+            fn as_raw_fd(&self) -> RawFd {
+                self.get_fd()
+            }
+        }
+    )
+}
+
 #[derive(Debug)]
 pub struct FdBox {
     fd: Fd,
 }
+impl_AsRawFd_for!(FdBox);
 impl FromRaw for FdBox {
     /// # Safety
     ///  * `fd` - must be a valid fd that isn't opened with `O_PATH` or `O_DIRECTORY`
@@ -227,6 +239,7 @@ impl FdBasicOp for Fd {
         self.fd
     }
 }
+impl_AsRawFd_for!(Fd);
 impl Fd {
     pub fn read(&self, buffer: &mut [u8]) -> Result<usize, SyscallError> {
         let buf_ptr = buffer.as_mut_ptr() as *mut c_void;
@@ -288,6 +301,7 @@ impl FromRaw for FdPathBox {
         FdPathBox { fd: FdPath::from_raw(fd) }
     }
 }
+impl_AsRawFd_for!(FdPathBox);
 impl FdPathBox {
     pub fn openat(dirfd: FdPath, pathname: &CStr, mode: FdPathMode, cloexec: bool)
         -> Result<FdPathBox, SyscallError>
@@ -336,6 +350,7 @@ impl FdBasicOp for FdPath {
         self.fd
     }
 }
+impl_AsRawFd_for!(FdPath);
 impl FdPath {
     /// Pre condition: self is opened in dir mode
     /// Check manpage for fchdir for more documentation.
