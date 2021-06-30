@@ -21,8 +21,8 @@ libc = "0.2"
 bitflags = "1.0"
 cstr = "0.2.8"
 
-# For mod process
-crossbeam-queue = "0.3"
+crossbeam-queue = "0.3"                           # For mod StacksQueue
+tokio = { version = "1.7.1", features = ["net"] } # For mod process
 
 [build-dependencies]
 bindgen = "0.53.1"
