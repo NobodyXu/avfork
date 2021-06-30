@@ -40,6 +40,7 @@ use std::ops::Deref;
 pub use std::os::raw::{c_void, c_int, c_long, c_char};
 pub use std::ffi::CStr;
 use std::io::{Write, Read};
+use std::hint::unreachable_unchecked;
 
 pub use binding::{sigset_t, pid_t, uid_t, gid_t};
 
@@ -712,7 +713,7 @@ pub fn exit(status: c_int) -> ! {
     unsafe {
         binding::psys_exit(status);
     }
-    unreachable!()
+    unsafe { unreachable_unchecked() }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -762,7 +763,7 @@ pub fn execve(pathname: &CStr, argv: &CStrArray, envp: &CStrArray) -> SyscallErr
     };
 
     match toResult(ret as i64) {
-        Ok(_) => unreachable!(),
+        Ok(_) => unsafe { unreachable_unchecked() },
         Err(err) => err
     }
 }
@@ -796,7 +797,7 @@ pub fn execveat(
     };
 
     match toResult(ret as i64) {
-        Ok(_) => unreachable!(),
+        Ok(_) => unsafe { unreachable_unchecked() },
         Err(err) => err
     }
 }
@@ -922,7 +923,7 @@ pub fn execvel(
             binding::psys_execve(constructed_path.as_ptr() as *const c_char, argv, envp)
         };
         let err = match toResult(ret as i64) {
-            Ok(_) => unreachable!(),
+            Ok(_) => unsafe { unreachable_unchecked() },
             Err(err) => err
         };
 
