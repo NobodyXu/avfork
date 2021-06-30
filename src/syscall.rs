@@ -261,10 +261,7 @@ impl Fd {
 /// requires trait Write can be called upon it.
 impl Write for Fd {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        match Fd::write(self, buf) {
-            Ok(cnt) => Ok(cnt),
-            Err(err) => Err(std::io::Error::from_raw_os_error(err.get_errno() as i32))
-        }
+        Ok(Fd::write(self, buf)?)
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
@@ -274,10 +271,7 @@ impl Write for Fd {
 /// impl Read for Fd so that any method that requires trait Write can be called upon it.
 impl Read for Fd {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        match Fd::read(self, buf) {
-            Ok(cnt) => Ok(cnt),
-            Err(err) => Err(std::io::Error::from_raw_os_error(err.get_errno() as i32))
-        }
+        Ok(Fd::read(self, buf)?)
     }
 }
 

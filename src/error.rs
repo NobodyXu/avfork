@@ -71,6 +71,11 @@ impl fmt::Debug for SyscallError {
         fmt::Display::fmt(self, f)
     }
 }
+impl From<SyscallError> for std::io::Error {
+    fn from(err: SyscallError) -> Self {
+        std::io::Error::from_raw_os_error(err.get_errno() as i32)
+    }
+}
 
 #[cfg(test)]
 mod tests {
