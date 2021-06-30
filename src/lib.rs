@@ -14,6 +14,9 @@ pub mod error;
 /// lowlevel wrapper of aspawn
 pub mod lowlevel;
 
+/// highlevel wrapper of aspawn
+pub mod process;
+
 extern crate once_cell;
 extern crate libc;
 #[macro_use]
