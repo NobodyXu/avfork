@@ -802,29 +802,65 @@ pub fn execveat(
     }
 }
 
+/// linux/limits.h say PATH_MAX is 4096, but it seems that the filesystem on linux
+/// does not actually hardcoded this limit
+/// 
+/// So let's make PSYS_PATH_MAX 5 * 4096 just in case.
+///
+/// Include the null byte.
+pub const PATH_MAX: usize = 5 * 4096;
+
+/// Does not include the null byte.
+pub const FILENAME_MAX: usize = 255;
+
 #[derive(Copy, Clone, Debug)]
-pub struct ExecvelCandidate<'a> {
-    filename: &'a str,
-    paths: &'a [&'a str]
+pub struct Filename<'a> {
+    filename: &'a CStr
 }
-impl<'a> ExecvelCandidate<'a> {
-    /// * `filename` - must not contains any slash or empty, must be less than `PATH_MAX`
-    /// * `paths` - must not be empty and neither should each element in it be empty,
-    ///   and len of each element plus len of filename plus 1 must be less than 
-    ///   `PATH_MAX`.
-    pub fn new(filename: &'a str, paths: &'a [&'a str])
-        -> Option<ExecvelCandidate<'a>>
-    {
-        let filename_sz = filename.as_bytes().len();
-        if filename_sz == 0 {
+impl<'a> Filename<'a> {
+    /// * `filename` - must not contains any slash or be empty,
+    ///   must be less than `FILENAME_MAX
+    pub fn new(filename: &'a CStr) -> Option<Filename<'a>> {
+        let filename_sz = filename.to_bytes().len();
+        if filename_sz == 0 || filename_sz > FILENAME_MAX {
             return None;
         }
 
-        for byte in filename.as_bytes() {
+        for byte in filename.to_bytes() {
             if *byte == b'/' {
                 return None;
             }
         }
+
+        Some(Filename { filename })
+    }
+
+    pub fn to_bytes(&self) -> &[u8] {
+        self.filename.to_bytes()
+    }
+
+    pub fn len(&self) -> usize {
+        self.to_bytes().len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.to_bytes().is_empty()
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct ExecvelCandidate<'a> {
+    filename: Filename<'a>,
+    paths: &'a [&'a str]
+}
+impl<'a> ExecvelCandidate<'a> {
+    /// * `paths` - must not be empty and neither should each element in it be empty,
+    ///   and len of each element plus len of filename plus 1 must be less than 
+    ///   `PATH_MAX`.
+    pub fn new(filename: Filename<'a>, paths: &'a [&'a str])
+        -> Option<ExecvelCandidate<'a>>
+    {
+        let filename_sz = filename.len();
 
         if paths.is_empty() {
             return None;
@@ -843,25 +879,14 @@ impl<'a> ExecvelCandidate<'a> {
         Some(ExecvelCandidate { filename, paths })
     }
 
-    pub fn get_filename(&self) -> &'a str {
-        self.filename
+    pub fn get_filename(&'a self) -> &'a Filename<'a> {
+        &self.filename
     }
 
     pub fn get_paths(&self) -> &'a [&'a str] {
         self.paths
     }
 }
-
-/// linux/limits.h say PATH_MAX is 4096, but it seems that the filesystem on linux
-/// does not actually hardcoded this limit
-/// 
-/// So let's make PSYS_PATH_MAX 5 * 4096 just in case.
-///
-/// Include the null byte.
-pub const PATH_MAX: usize = 5 * 4096;
-
-/// Does not include the null byte.
-pub const FILENAME_MAX: usize = 255;
 
 /// These functions duplicate the actions of the shell in searching for 
 /// an executable file
@@ -903,7 +928,7 @@ pub fn execvel(
         };
     };
 
-    let filename = candidate.get_filename().as_bytes();
+    let filename = candidate.get_filename().to_bytes();
     let filename_sz = filename.len();
     let filename = filename.as_ptr();
 
@@ -960,26 +985,14 @@ pub fn execvel(
 
 #[derive(Copy, Clone, Debug)]
 pub struct FexecvelCandidate<'a> {
-    filename: &'a CStr,
+    filename: Filename<'a>,
     paths: &'a [FdPath]
 }
 impl<'a> FexecvelCandidate<'a> {
-    /// * `filename` - must not contains any slash or empty, must be less than `PATH_MAX`
     /// * `paths` - must not be empty
-    pub fn new(filename: &'a CStr, paths: &'a [FdPath])
+    pub fn new(filename: Filename<'a>, paths: &'a [FdPath])
         -> Option<FexecvelCandidate<'a>>
     {
-        let filename_sz = filename.to_bytes().len();
-        if filename_sz == 0 || filename_sz > FILENAME_MAX {
-            return None;
-        }
-
-        for byte in filename.to_bytes() {
-            if *byte == b'/' {
-                return None;
-            }
-        }
-
         if paths.is_empty() {
             return None;
         }
@@ -987,8 +1000,8 @@ impl<'a> FexecvelCandidate<'a> {
         Some(FexecvelCandidate { filename, paths })
     }
 
-    pub fn get_filename(&self) -> &'a CStr {
-        self.filename
+    pub fn get_filename(&'a self) -> &'a Filename<'a> {
+        &self.filename
     }
 
     pub fn get_paths(&self) -> &'a [FdPath] {
@@ -1002,7 +1015,7 @@ pub fn fexecvel(
     envp: &CStrArray
 ) -> SyscallError
 {
-    let filename = candidate.get_filename();
+    let filename = candidate.get_filename().filename;
 
     let mut got_eaccess = false;
 
@@ -1075,17 +1088,18 @@ mod tests {
         let envp = CStrArray::new(&envpVec).unwrap();
 
         let run_program = |filename, argv| {
+            let filename = Filename::new(filename).unwrap();
             let candidate = ExecvelCandidate::new(filename, &paths)
                 .unwrap();
             assert_eq!(run(|| {
                 errx!(1, "{}", execvel(&candidate, argv, &envp));
             }), 0);
         };
-        run_program("echo", &argv);
+        run_program(cstr!("echo"), &argv);
 
         // Test out macro_rules CStrArray!
         const argv2: CStrArray = CStrArray!("env");
-        run_program("env", &argv2);
+        run_program(cstr!("env"), &argv2);
     }
 
     #[test]
@@ -1101,6 +1115,7 @@ mod tests {
         const envp: CStrArray = CStrArray!("A=B");
 
         let run_program = |filename, argv_var| {
+            let filename = Filename::new(filename).unwrap();
             let candidate = FexecvelCandidate::new(filename, &paths)
                 .unwrap();
             assert_eq!(run(|| {
