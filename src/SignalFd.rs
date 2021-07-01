@@ -1,6 +1,8 @@
 use std::io::{Result, Error};
 use std::os::raw::{c_void, c_int, c_long, c_char};
 use std::mem::{self, size_of, size_of_val, MaybeUninit};
+use std::pin::Pin;
+use std::sync::Arc;
 
 use libc::{signalfd, signalfd_siginfo, SFD_CLOEXEC, SFD_NONBLOCK, SIGCHLD};
 use libc::{sigset_t, SIG_BLOCK, sigemptyset, sigaddset, sigprocmask};
@@ -9,6 +11,7 @@ use libc::pid_t;
 
 use tokio::io::unix::AsyncFd;
 use tokio::io::Interest;
+use tokio::task::JoinHandle;
 
 use waitmap::WaitMap;
 
@@ -23,7 +26,7 @@ pub struct SigChldFd {
     map: WaitMap<pid_t, ExitInfo>
 }
 impl SigChldFd {
-    pub fn new() -> Result<SigChldFd> {
+    pub fn new() -> Result<(Arc<SigChldFd>, JoinHandle<Result<()>>)> {
         let mut mask = std::mem::MaybeUninit::<sigset_t>::uninit();
         unsafe {
             if sigemptyset(mask.as_mut_ptr()) < 0 {
@@ -50,10 +53,20 @@ impl SigChldFd {
 
         let fd = unsafe { FdBox::from_raw(fd) };
 
-        Ok(SigChldFd {
+        let ret = Arc::new(SigChldFd {
             inner: AsyncFd::with_interest(fd, Interest::READABLE)?,
             map: WaitMap::new()
-        })
+        });
+
+        let sigfd = ret.clone();
+        Ok(
+            (
+                ret,
+                tokio::spawn(async move {
+                    sigfd.read().await
+                })
+            )
+        )
     }
 
     async fn read_bytes(&self, out: &mut [u8]) -> Result<usize> {
@@ -69,41 +82,47 @@ impl SigChldFd {
         }
     }
 
-    pub async fn read(&self) -> Result<()> {
-        let mut siginfos: [MaybeUninit<signalfd_siginfo>; SIGINFO_BUFSIZE] = unsafe {
-            // MaybeUninit does not initialization
-            MaybeUninit::uninit().assume_init()
+    async fn read(&self) -> Result<()> {
+        let mut siginfos: [signalfd_siginfo; SIGINFO_BUFSIZE] = unsafe {
+            // signalfd_siginfo does not initialization
+            MaybeUninit::zeroed().assume_init()
         };
 
-        let cnt = self.read_bytes(unsafe {
+        let bytes = unsafe {
             std::slice::from_raw_parts_mut(
                 siginfos.as_mut_ptr() as *mut u8,
                 size_of_val(&siginfos)
             )
-        }).await?;
+        };
 
-        assert_eq!(cnt % size_of::<signalfd_siginfo>(), 0);
-        let items = cnt / size_of::<signalfd_siginfo>();
+        loop {
+            let cnt = self.read_bytes(bytes).await?;
 
-        let recevied_siginfos = &siginfos[0..items];
-        for each in recevied_siginfos {
-            let siginfo = unsafe { each.assume_init() };
+            assert_eq!(cnt % size_of::<signalfd_siginfo>(), 0);
+            let items = cnt / size_of::<signalfd_siginfo>();
 
-            let wstatus = siginfo.ssi_status;
-            if libc::WIFEXITED(wstatus) || libc::WIFSIGNALED(wstatus) {
-                self.map.insert(
-                    siginfo.ssi_pid as pid_t,
-                    ExitInfo {
-                        uid: siginfo.ssi_uid,
-                        wstatus,
-                        utime: siginfo.ssi_utime as libc::clock_t,
-                        stime: siginfo.ssi_stime as libc::clock_t
-                    }
-                );
+            let recevied_siginfos = &siginfos[0..items];
+            for siginfo in recevied_siginfos {
+                let wstatus = siginfo.ssi_status;
+                if libc::WIFEXITED(wstatus) || libc::WIFSIGNALED(wstatus) {
+                    self.map.insert(
+                        siginfo.ssi_pid as pid_t,
+                        ExitInfo {
+                            uid: siginfo.ssi_uid,
+                            wstatus,
+                            utime: siginfo.ssi_utime as libc::clock_t,
+                            stime: siginfo.ssi_stime as libc::clock_t
+                        }
+                    );
+                }
             }
         }
+    }
 
-        Ok(())
+    pub async fn wait(&self, pid: pid_t) -> Result<ExitInfo> {
+        ;
+
+        unimplemented!()
     }
 }
 

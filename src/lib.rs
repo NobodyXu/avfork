@@ -28,7 +28,7 @@ extern crate bitflags;
 extern crate cstr;
 
 extern crate crossbeam_queue; // For mod StacksQueue
-extern crate tokio;           // For mod process
+extern crate tokio;           // For mod process and SignalFd
 extern crate waitmap;         // For mod SignalFd
 
 #[cfg(test)]
