@@ -2,6 +2,8 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
+/// TODO: Add autorestart
+
 mod binding {
     use super::{CStr, FdPath, c_int, FdBasicOp, FdFlags};
     use crate::error::{toResult, SyscallError};
@@ -45,6 +47,7 @@ use std::os::unix::io::{AsRawFd, RawFd};
 
 pub use binding::{sigset_t, pid_t, uid_t, gid_t};
 
+use crate::expect;
 use crate::error::{toResult, SyscallError};
 use crate::utility::to_void_ptr;
 
@@ -208,8 +211,12 @@ impl FdBox {
 }
 impl Drop for FdBox {
     fn drop(&mut self) {
-        unsafe {
-            binding::psys_close(self.get_fd());
+        let ret = unsafe {
+            binding::psys_close(self.get_fd()) as i64
+        };
+
+        if cfg!(debug_assertions) {
+            expect!(toResult(ret), "Failed to release the FdBox {:#?}", self);
         }
     }
 }
@@ -320,8 +327,12 @@ impl Deref for FdPathBox {
 }
 impl Drop for FdPathBox {
     fn drop(&mut self) {
-        unsafe {
-            binding::psys_close(self.get_fd());
+        let ret = unsafe {
+            binding::psys_close(self.get_fd()) as i64
+        };
+
+        if cfg!(debug_assertions) {
+            expect!(toResult(ret), "Failed to release the FdPathBox {:#?}", self);
         }
     }
 }
