@@ -32,9 +32,12 @@ impl Default for Stack {
 }
 impl Drop for Stack {
     fn drop(&mut self) {
-        toResult(unsafe {
+        let ret = unsafe {
             aspawn::cleanup_stack(&self.stack_impl) as i64
-        }).expect("Failed to deallocate the stack");
+        };
+        if cfg!(debug_assertions) {
+            toResult(ret).expect("Failed to deallocate the stack");
+        }
     }
 }
 impl Stack {
@@ -352,11 +355,19 @@ mod tests {
         }
     }
 
+    fn print_maps() {
+        let mut file = File::open("/proc/self/maps").unwrap();
+        io::copy(&mut file, &mut io::stdout()).unwrap();
+    }
+
     fn test_callback<F: Fn(Fd, &mut sigset_t) -> c_int + Copy >(f: F) {
         let mut stack = Stack::new();
 
         for _ in 0..10 {
-            let allocator = stack.reserve(0, 100).unwrap();
+            let allocator = stack.reserve(4096 * 100, 100).unwrap();
+
+            println!("allocator = {:#?}", allocator);
+            print_maps();
 
             let f = match allocator.alloc_obj(f) {
                 Ok(f) => f,
@@ -406,6 +417,27 @@ mod tests {
     fn test_avfork_exec() {
         test_callback(test_avfork_exec_callback);
     }
+
+    fn test_avfork_cd_exec_callback(_fd: Fd, _old_sigset: &mut sigset_t) -> c_int {
+        use crate::syscall::*;
+        use crate::{CStrArray, errx};
+        use crate::utility::unwrap;
+
+        unwrap(chdir(&cstr!("/tmp")));
+
+        let err = execve(
+            &cstr!("/bin/ls"),
+            &CStrArray!("/bin/ls"),
+            &CStrArray!("A=B")
+        );
+        errx!(1, "execve failed: {}", err);
+    }
+
+    #[test]
+    fn test_avfork_cd_exec() {
+        test_callback(test_avfork_cd_exec_callback);
+    }
+
 
     //fn dummy_avfork_rec_callback(fd: Fd, old_sigset: &mut sigset_t) -> c_int {
     //    let mut stack = Stack::new();
