@@ -51,6 +51,31 @@ use crate::expect;
 use crate::error::{toResult, SyscallError};
 use crate::utility::to_void_ptr;
 
+pub fn autorestart<T, F>(mut f: F)
+    -> Result<T, SyscallError>
+    where F: FnMut() -> Result<T, SyscallError>
+{
+    loop {
+        let ret = f();
+
+        if let Err(err) = &ret {
+            if err.get_errno() == libc::EINTR {
+                continue;
+            }
+        }
+
+        break ret
+    }
+}
+#[macro_export]
+macro_rules! autorestart {
+    ( { $( $tt:tt )* } ) => {
+        $crate::syscall::autorestart(
+            || { $( $tt )* }
+        )
+    };
+}
+
 // Here it relies on the compiler to check that i32 == c_int
 #[repr(i32)]
 #[derive(Copy, Clone, Debug)]
@@ -1075,11 +1100,45 @@ pub fn fexecvel(
 
 #[cfg(test)]
 mod tests {
-    use crate::errx;
+    use crate::{errx, autorestart};
     use crate::syscall::*;
     use crate::utility::{to_cstr, to_cstr_ptr};
     use crate::utility::tests::run;
     use std::os::raw::c_char;
+
+    #[test]
+    fn test_autorestart() {
+        let mut cnt = 0;
+
+        let result = autorestart(|| {
+            if cnt == 0 {
+                cnt = 1;
+                Err(SyscallError::new(libc::EINTR as u32))
+            } else {
+                Ok(1)
+            }
+        });
+
+        assert_matches!(result, Ok(1));
+        assert_eq!(cnt, 1);
+    }
+
+    #[test]
+    fn test_autorestart_macro() {
+        let mut cnt = 0;
+
+        let result = autorestart!({
+            if cnt == 0 {
+                cnt = 1;
+                Err(SyscallError::new(libc::EINTR as u32))
+            } else {
+                Ok(1)
+            }
+        });
+
+        assert_matches!(result, Ok(1));
+        assert_eq!(cnt, 1);
+    }
 
     #[test]
     fn test_impl_Write_for_Fd() {
