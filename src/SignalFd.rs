@@ -1,7 +1,9 @@
+/// TODO: 
+///  - auto restart syscall on EINTR
+///  - Move this code into another independent crate
 use std::io::{Result, Error};
-use std::os::raw::{c_void, c_int, c_long, c_char};
-use std::mem::{self, size_of, size_of_val, MaybeUninit};
-use std::pin::Pin;
+use std::os::raw::c_int;
+use std::mem::{size_of, size_of_val, MaybeUninit};
 use std::sync::Arc;
 
 use libc::{signalfd, signalfd_siginfo, SFD_CLOEXEC, SFD_NONBLOCK, SIGCHLD};
@@ -19,11 +21,39 @@ use crate::syscall::{FdBox, FromRaw};
 
 const SIGINFO_BUFSIZE: usize = 20;
 
+fn waitid(idtype: libc::idtype_t, id: libc::id_t, options: c_int)
+    -> Result<Option<libc::siginfo_t>>
+{
+    let mut siginfo = MaybeUninit::<libc::siginfo_t>::zeroed();
+
+    let ret = unsafe {
+        libc::waitid(idtype, id, siginfo.as_mut_ptr(), options)
+    };
+    if ret < 0 {
+        return Err(Error::last_os_error());
+    }
+
+    let siginfo = unsafe { siginfo.assume_init() };
+    if unsafe { siginfo.si_pid() } == 0 {
+        Ok(None)
+    } else {
+        Ok(Some(siginfo))
+    }
+}
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+struct Pid(libc::pid_t);
+impl From<&Pid> for Pid {
+    fn from(pid: &Pid) -> Pid {
+        *pid
+    }
+}
+
 /// Due to the fact that epoll on signalfd would fail after fork, you cannot use
 /// SigChldFd after forked
 pub struct SigChldFd {
     inner: AsyncFd<FdBox>,
-    map: WaitMap<pid_t, ExitInfo>
+    map: WaitMap<Pid, ExitInfo>
 }
 impl SigChldFd {
     pub fn new() -> Result<(Arc<SigChldFd>, JoinHandle<Result<()>>)> {
@@ -83,6 +113,10 @@ impl SigChldFd {
     }
 
     async fn read(&self) -> Result<()> {
+        use libc::P_ALL;
+
+        let waitid_option = libc::WEXITED | libc::WNOHANG;
+
         let mut siginfos: [signalfd_siginfo; SIGINFO_BUFSIZE] = unsafe {
             // signalfd_siginfo does not initialization
             MaybeUninit::zeroed().assume_init()
@@ -99,33 +133,68 @@ impl SigChldFd {
             let cnt = self.read_bytes(bytes).await?;
 
             assert_eq!(cnt % size_of::<signalfd_siginfo>(), 0);
-            let items = cnt / size_of::<signalfd_siginfo>();
 
-            let recevied_siginfos = &siginfos[0..items];
-            for siginfo in recevied_siginfos {
-                let wstatus = siginfo.ssi_status;
-                if libc::WIFEXITED(wstatus) || libc::WIFSIGNALED(wstatus) {
-                    self.map.insert(
-                        siginfo.ssi_pid as pid_t,
-                        ExitInfo {
-                            uid: siginfo.ssi_uid,
-                            wstatus,
-                            utime: siginfo.ssi_utime as libc::clock_t,
-                            stime: siginfo.ssi_stime as libc::clock_t
-                        }
-                    );
-                }
+            // Given that signal is an unreliable way of detecting 
+            // SIGCHLD and can cause race condition when using waitid
+            // (E.g. after reading all siginfo, some new SIGCHLD is generated
+            // but these zombies are already released via watid)
+            //
+            // Thus it is considered better to just ignore the siginfo at all
+            // and just use waitid instead.
+
+            //let items = cnt / size_of::<signalfd_siginfo>();
+            //let recevied_siginfos = &siginfos[0..items];
+            //for siginfo in recevied_siginfos {
+            //    let wstatus = siginfo.ssi_status;
+            //    if ! (libc::WIFEXITED(wstatus) || libc::WIFSIGNALED(wstatus)) {
+            //        continue;
+            //    }
+
+            //    let pid = siginfo.ssi_pid as pid_t;
+            //    self.map.insert(
+            //        pid,
+            //        Ok(ExitInfo {
+            //            uid: siginfo.ssi_uid,
+            //            wstatus,
+            //            utime: siginfo.ssi_utime as libc::clock_t,
+            //            stime: siginfo.ssi_stime as libc::clock_t
+            //        })
+            //    );
+
+            //    // release the zombie
+            //    match waitid(P_PID, pid as id_t, waitid_option)? {
+            //        Some(_) => (),
+            //        None => errx!(1, "waitid cannot find zombie {}", pid)
+            //    }
+            //}
+
+            // Continue to collect zombies whose SIGCHLD might get coalesced
+            while let Some(siginfo) = waitid(P_ALL, 0, waitid_option)? {
+                self.map.insert(
+                    Pid(unsafe { siginfo.si_pid() }),
+                    ExitInfo {
+                        uid: unsafe { siginfo.si_uid() },
+                        wstatus: unsafe { siginfo.si_status() },
+                        utime: unsafe { siginfo.si_utime() },
+                        stime: unsafe { siginfo.si_stime() }
+                    }
+                );
             }
         }
     }
 
-    pub async fn wait(&self, pid: pid_t) -> Result<ExitInfo> {
-        ;
-
-        unimplemented!()
+    pub async fn wait(&self, pid: pid_t) -> ExitInfo {
+        let pid = Pid(pid);
+        loop {
+            match self.map.wait(&pid).await {
+                Some(val) => break *(val.value()),
+                None => continue,
+            }
+        }
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct ExitInfo {
     /// uid of the child when it exits
     uid: libc::uid_t,
