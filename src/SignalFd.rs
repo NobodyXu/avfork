@@ -1,5 +1,4 @@
 /// TODO: 
-///  - auto restart syscall on EINTR
 ///  - Move this code into another independent crate
 use std::io::{Result, Error};
 use std::os::raw::c_int;
@@ -17,6 +16,7 @@ use tokio::task::JoinHandle;
 
 use waitmap::WaitMap;
 
+use crate::autorestart;
 use crate::syscall::{FdBox, FromRaw};
 
 const SIGINFO_BUFSIZE: usize = 20;
@@ -41,6 +41,7 @@ fn waitid(idtype: libc::idtype_t, id: libc::id_t, options: c_int)
     }
 }
 
+// Workaround for WaitMap's strange requirement in wait
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 struct Pid(libc::pid_t);
 impl From<&Pid> for Pid {
@@ -104,7 +105,13 @@ impl SigChldFd {
             let mut guard = self.inner.readable().await?;
 
             match guard.try_io(|inner| -> Result<usize> {
-                Ok(inner.get_ref().read(out)?)
+                let fd = inner.get_ref();
+
+                Ok(
+                    autorestart!({
+                        fd.read(out)
+                    })?
+                )
             }) {
                 Ok(result) => break result,
                 Err(_would_block) => continue,
