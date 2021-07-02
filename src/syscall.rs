@@ -772,7 +772,7 @@ macro_rules! CStrArray {
         unsafe {
             $crate::syscall::CStrArray::from_raw(&[
                 $(
-                    cstr!($s).as_ptr(),
+                    $crate::cstr::cstr!($s).as_ptr(),
                 )*
                 std::ptr::null()
             ])
