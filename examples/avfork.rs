@@ -1,8 +1,18 @@
 use avfork::lowlevel::*;
-use avfork::syscall::c_int;
+use avfork::syscall::*;
+use avfork::{CStrArray, errx};
+use avfork::utility::unwrap;
+use avfork::cstr::cstr;
 
 fn dummy_avfork_callback(_fd: Fd, _old_sigset: &mut sigset_t) -> c_int {
-    0
+    unwrap(chdir(&cstr!("/tmp")));
+
+    let err = execve(
+        &cstr!("/bin/ls"),
+        &CStrArray!("/bin/ls"),
+        &CStrArray!("A=B")
+    );
+    errx!(1, "execve failed: {}", err);
 }
 
 fn main() {
