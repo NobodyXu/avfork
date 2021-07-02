@@ -51,6 +51,29 @@ pub fn unwrap<T, E: std::fmt::Debug>(result: Result<T, E>) -> T {
     expect(result, "unwrap failed")
 }
 
+pub fn expect_fmt<T, E>(result: Result<T, E>, args: std::fmt::Arguments)
+    -> T where E: std::fmt::Debug
+{
+    match result {
+        Ok(val) => val,
+        Err(err) => errx_impl(1, std::format_args!("{}: {:#?}", args, err))
+    }
+}
+
+#[macro_export]
+macro_rules! expect {
+    ( $result:expr $( , $x:expr )* ) => {
+        $crate::utility::expect_fmt($result, 
+            std::format_args!(
+                $(
+                    $x,
+                )*
+            )
+        )
+    };
+}
+
+
 #[cfg(test)]
 pub mod tests {
     use crate::utility::*;
@@ -85,6 +108,14 @@ pub mod tests {
     #[test]
     fn test_expect() {
         assert_eq!(run(|| expect(ERR, "Expected failure")), 1);
+    }
+
+    #[test]
+    fn test_expect_fmt() {
+        assert_eq!(
+            run(|| expect!(ERR, "Expected failure {}", 1)),
+            1
+        );
     }
 
     #[test]
