@@ -25,7 +25,7 @@ extern crate libc;
 #[macro_use]
 extern crate bitflags;
 #[macro_use]
-extern crate cstr;
+pub extern crate cstr;
 
 extern crate crossbeam_queue; // For mod StacksQueue
 extern crate tokio;           // For mod process and SignalFd
