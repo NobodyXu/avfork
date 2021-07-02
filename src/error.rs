@@ -49,8 +49,8 @@ impl SyscallError {
         SyscallError { errno }
     }
 
-    pub const fn get_errno(&self) -> u32 {
-        self.errno
+    pub const fn get_errno(&self) -> i32 {
+        self.errno as i32
     }
     pub fn get_msg(&self) -> &'static str {
         /* self.errno should be in range 1..errno_msgs_sz */
