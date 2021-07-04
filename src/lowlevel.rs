@@ -435,11 +435,10 @@ mod tests {
         errx!(1, "execve failed: {}", err);
     }
 
-    //#[test]
-    //fn test_avfork_cd_exec() {
-    //    test_callback(test_avfork_cd_exec_callback);
-    //}
-
+    #[test]
+    fn test_avfork_cd_exec() {
+        test_callback(test_avfork_cd_exec_callback);
+    }
 
     //fn dummy_avfork_rec_callback(fd: Fd, old_sigset: &mut sigset_t) -> c_int {
     //    let mut stack = Stack::new();
