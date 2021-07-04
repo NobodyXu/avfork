@@ -40,6 +40,10 @@ fn gen_binding(header: &str, output: &str) {
 }
 
 fn main() {
+    if env::var("PROFILE").unwrap() == "debug" {
+        env::set_var("DEBUG", "true");
+    }
+
     let build_dir_path = canonicalize(&(*OUT_PATH))
         .expect("Failed to canonicalize OUT_PATH")
         .join("aspawn_build");
